@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>爆弾パス — BAKUDAN PASS</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#170f12;--bg2:#20141a;--panel:#241820;--panel2:#2c1d26;
+    --gold:#d8b26a;--gold-lt:#f0d79c;--gold-dk:#a9834a;
+    --ember:#e2543d;--ember-dk:#b23a2c;--wine:#7a1f2b;
+    --ivory:#f2e8d6;--muted:#b39c8c;
+    --line:rgba(216,178,106,.24);
+    --jp:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:var(--jp);color:var(--ivory);
+    background:
+      radial-gradient(90% 60% at 50% -8%, rgba(216,178,106,.16) 0%, rgba(216,178,106,0) 46%),
+      radial-gradient(120% 90% at 50% 6%, #2a1a20 0%, var(--bg2) 40%, var(--bg) 100%);
+    overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  .app{position:relative;height:100dvh;overflow:hidden}
+  #shake{position:absolute;inset:0;will-change:transform}
+
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    padding:max(18px,env(safe-area-inset-top)) 22px max(20px,env(safe-area-inset-bottom));text-align:center;gap:15px;overflow-y:auto}
+  .screen.show{display:flex}
+
+  /* ---------- shared bits ---------- */
+  .kicker{font-size:11px;letter-spacing:.42em;text-indent:.42em;font-weight:700;color:var(--gold)}
+  h1{margin:6px 0 0;font-size:clamp(40px,13vw,66px);font-weight:800;letter-spacing:.06em;line-height:.95;
+    background:linear-gradient(180deg,#fbf1dc 0%,var(--gold-lt) 46%,var(--gold) 78%,var(--gold-dk) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .rule{width:64px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:2px 0}
+  .how{font-size:14px;line-height:1.85;color:var(--ivory);max-width:330px;font-weight:500;
+    background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01));
+    border:1px solid var(--line);border-radius:14px;padding:13px 16px}
+  .how b{color:var(--gold-lt);font-weight:800}
+  .rowlbl{font-size:11px;letter-spacing:.24em;color:var(--muted);font-weight:700}
+
+  .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:360px}
+  .btn{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);color:var(--ivory);
+    font-family:inherit;font-weight:700;cursor:pointer;transition:.15s;letter-spacing:.02em}
+  .btn:active{transform:translateY(1px)}
+  .fuse{padding:10px 14px;font-size:13px;line-height:1.3}
+  .th{padding:10px 15px;font-size:13.5px;display:flex;align-items:center;gap:7px}
+  .th .dot{width:8px;height:8px;border-radius:50%;background:var(--dotc,var(--gold));box-shadow:0 0 8px var(--dotc,var(--gold))}
+  .btn[aria-pressed="true"]{background:linear-gradient(180deg,var(--gold-lt),var(--gold));color:#2b1c10;border-color:transparent;
+    box-shadow:0 6px 18px rgba(216,178,106,.28)}
+  .btn[aria-pressed="true"] .dot{background:#2b1c10;box-shadow:none}
+  .gyro{padding:12px 18px;font-size:13px;max-width:346px;line-height:1.4;color:var(--gold);border-color:var(--gold)}
+  .gyro[data-on="1"]{background:linear-gradient(180deg,var(--gold-lt),var(--gold));color:#2b1c10;border-color:transparent;box-shadow:0 6px 18px rgba(216,178,106,.3)}
+  .gyro[data-on="err"]{color:var(--muted);border-color:var(--line)}
+  .cta{padding:17px 54px;font-size:24px;font-weight:800;letter-spacing:.14em;color:#2b1c10;border:none;border-radius:16px;
+    background:linear-gradient(180deg,#fbe6c0,var(--gold) 70%,var(--gold-dk));
+    box-shadow:0 12px 30px rgba(216,178,106,.32),inset 0 1px 0 rgba(255,255,255,.5);cursor:pointer;font-family:inherit;transition:.1s}
+  .cta:active{transform:translateY(2px);box-shadow:0 6px 16px rgba(216,178,106,.3)}
+  .note-s{font-size:11px;color:var(--muted);max-width:320px;line-height:1.5}
+
+  /* ---------- drawn bomb ---------- */
+  .bomb-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+  .bomb{position:relative;width:min(46vw,210px);aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle at 36% 30%, #5b4750 0%, #2a1c22 44%, #0c0709 100%);
+    box-shadow:inset -8px -10px 24px rgba(0,0,0,.65), inset 8px 8px 18px rgba(240,215,156,.10),
+      0 16px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(216,178,106,.16);
+    will-change:transform}
+  .bomb::after{content:"";position:absolute;top:15%;left:20%;width:30%;height:22%;border-radius:50%;
+    background:radial-gradient(circle,rgba(242,232,214,.55),transparent 70%);filter:blur(3px)}
+  .cap{position:absolute;top:-7%;left:50%;transform:translateX(-50%);width:20%;height:15%;border-radius:5px 5px 3px 3px;
+    background:linear-gradient(180deg,#7a5f34,#3c2c17);box-shadow:inset 0 2px 2px rgba(255,220,150,.35)}
+  .fuse-line{position:absolute;top:-20%;left:50%;width:5px;height:18%;transform:translateX(-50%) rotate(12deg);transform-origin:bottom;
+    background:linear-gradient(180deg,#8a6a3a,#5a4325);border-radius:3px}
+  .spark{position:absolute;top:-26%;left:calc(50% + 8px);width:16px;height:16px;border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,#ffe08a 35%,var(--ember) 68%,transparent 74%);
+    box-shadow:0 0 18px 4px rgba(255,180,74,.8);animation:flick .16s infinite alternate}
+  @keyframes flick{from{transform:scale(.82);opacity:.8}to{transform:scale(1.18);opacity:1}}
+  #bombGlow{position:absolute;width:min(86vw,380px);aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,rgba(226,84,61,.5) 0%,rgba(216,178,106,.18) 40%,transparent 66%);
+    transform:scale(.5);opacity:.25;will-change:transform,opacity;pointer-events:none}
+
+  /* ---------- START ---------- */
+  .brandmark{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .tag{font-size:11px;letter-spacing:.34em;color:var(--muted);font-weight:600}
+
+  /* ---------- PLAY ---------- */
+  #play{overflow:hidden}
+  #redflood{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .12s linear;
+    background:radial-gradient(120% 100% at 50% 46%,rgba(226,84,61,.42) 0%,rgba(122,31,43,.6) 66%,rgba(60,10,16,.75) 100%)}
+  #speed{position:absolute;inset:-20%;z-index:2;pointer-events:none;opacity:.05;
+    background:repeating-conic-gradient(from 0deg at 50% 46%,rgba(226,84,61,.9) 0 .5deg,transparent .5deg 3.6deg);
+    -webkit-mask:radial-gradient(circle at 50% 46%,transparent 26%,#000 58%);mask:radial-gradient(circle at 50% 46%,transparent 26%,#000 58%);will-change:opacity,transform}
+  #play>*{position:relative;z-index:3}
+  .brand{position:absolute;top:max(13px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:6;
+    font-size:12px;font-weight:800;letter-spacing:.2em;color:var(--gold);
+    border:1px solid var(--line);border-radius:999px;padding:5px 16px;background:rgba(20,12,16,.6);backdrop-filter:blur(4px);pointer-events:none}
+  .pass-word{font-size:clamp(28px,9vw,46px);font-weight:800;letter-spacing:.03em;color:var(--ivory);
+    text-shadow:0 2px 20px rgba(226,84,61,.5)}
+  .sub-word{font-size:13px;color:var(--muted);letter-spacing:.14em;font-weight:600}
+  #tiltWarn{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 rgba(226,84,61,0);transition:box-shadow .08s;z-index:5}
+
+  /* ---------- BOOM ---------- */
+  #boom{overflow:hidden}
+  #boomBurst{position:absolute;inset:-30%;z-index:1;pointer-events:none;opacity:.85;
+    background:repeating-conic-gradient(from 0deg at 50% 42%,rgba(226,84,61,.9) 0 6deg,rgba(216,178,106,.75) 6deg 12deg);
+    -webkit-mask:radial-gradient(circle at 50% 42%,#000 0,#000 26%,transparent 66%);mask:radial-gradient(circle at 50% 42%,#000 0,#000 26%,transparent 66%);
+    animation:spin 16s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #boom>*{position:relative;z-index:3}
+  .boom-core{width:min(24vw,120px);aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,#ffe08a 30%,var(--ember) 60%,var(--ember-dk) 100%);
+    box-shadow:0 0 50px 12px rgba(226,84,61,.6)}
+  .boom-ttl{font-size:clamp(32px,10vw,54px);font-weight:800;letter-spacing:.04em;margin:0;color:var(--ivory);
+    text-shadow:0 3px 26px rgba(226,84,61,.7);text-wrap:balance}
+  .verdict{width:100%;max-width:360px;border-radius:16px;padding:0 0 18px;overflow:hidden;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);box-shadow:0 18px 46px rgba(0,0,0,.5)}
+  .verdict .lbl{font-size:11px;letter-spacing:.2em;color:#2b1c10;font-weight:800;
+    background:linear-gradient(180deg,var(--gold-lt),var(--gold));padding:9px 12px}
+  .verdict .pun{font-size:clamp(20px,6vw,26px);font-weight:800;line-height:1.4;color:var(--ivory);padding:16px 18px 0;text-wrap:balance}
+  .again{display:flex;gap:10px;width:100%;max-width:360px}
+  .again .cta{flex:1;font-size:18px;letter-spacing:.06em;padding:15px 10px;border-radius:14px}
+  .again .ghost{flex:1;padding:13px 12px;border-radius:14px;font-size:13px;line-height:1.3;color:var(--ivory);
+    border:1px solid var(--line);background:rgba(255,255,255,.03);font-family:inherit;font-weight:700;cursor:pointer}
+  .again .ghost:active{transform:translateY(1px)}
+  .brand-boom{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--gold);
+    border:1px solid var(--line);border-radius:999px;padding:5px 16px;background:rgba(20,12,16,.5)}
+
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40}
+  canvas#fx{position:absolute;inset:0;z-index:30;pointer-events:none}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <canvas id="fx"></canvas>
+  <div id="flash"></div>
+  <div id="shake">
+
+    <!-- START -->
+    <section class="screen show" id="start">
+      <div class="brandmark">
+        <div class="kicker">PARTY BOMB GAME</div>
+        <h1>爆弾パス</h1>
+        <div class="rule"></div>
+        <div class="tag">BAKUDAN PASS</div>
+      </div>
+      <p class="how">スタート後、<b>みんなで手渡しでパス</b>。<br>火花が近づくほど緊張MAX——<b>爆発した瞬間に持っていた人が負け</b>。</p>
+      <div class="rowlbl">導火線の長さ</div>
+      <div class="row" id="fuses" role="group" aria-label="導火線の長さ">
+        <button class="btn fuse" data-min="4" data-max="9">短い・ドキドキ</button>
+        <button class="btn fuse" data-min="7" data-max="16" aria-pressed="true">ふつう</button>
+        <button class="btn fuse" data-min="14" data-max="26">長い・ジワジワ</button>
+      </div>
+      <div class="rowlbl">罰ゲームのテーマ</div>
+      <div class="row" id="themes" role="group" aria-label="罰ゲームのテーマ">
+        <button class="btn th" data-theme="normal" aria-pressed="true"><span class="dot" style="--dotc:var(--gold)"></span>ノーマル</button>
+        <button class="btn th" data-theme="love"><span class="dot" style="--dotc:#ff6f9c"></span>恋愛ドキドキ</button>
+        <button class="btn th" data-theme="spicy"><span class="dot" style="--dotc:var(--ember)"></span>激辛・体張り</button>
+      </div>
+      <button class="btn gyro" id="gyroBtn" data-on="0">傾け体感モード ── 雑に扱うと早爆</button>
+      <button class="cta" id="startBtn">S T A R T</button>
+      <p class="note-s" id="startNote">傾け体感はスマホで「許可」を押すと有効。使えない端末はタイマーだけで遊べます。</p>
+    </section>
+
+    <!-- PLAY -->
+    <section class="screen" id="play">
+      <div id="redflood"></div>
+      <div id="speed"></div>
+      <div id="tiltWarn"></div>
+      <div class="brand">爆弾パス</div>
+      <div class="pass-word" id="passWord">パスしろ</div>
+      <div class="bomb-wrap">
+        <div id="bombGlow"></div>
+        <div class="bomb" id="bomb">
+          <div class="cap"></div><div class="fuse-line"></div><div class="spark"></div>
+        </div>
+      </div>
+      <div class="sub-word" id="subWord">隣へ、どんどん手渡し</div>
+    </section>
+
+    <!-- BOOM -->
+    <section class="screen" id="boom">
+      <div id="boomBurst"></div>
+      <div class="boom-core"></div>
+      <h2 class="boom-ttl" id="boomTtl">ドッカーン！</h2>
+      <div class="verdict">
+        <div class="lbl">今 持っていた人が負け ── 罰ゲーム</div>
+        <div class="pun" id="punText">一気に飲む</div>
+      </div>
+      <div class="again"><button class="cta" id="againBtn">もう一回</button></div>
+      <div class="again">
+        <button class="ghost" id="reroll">罰ゲーム引き直し</button>
+        <button class="ghost" id="homeBtn">ホーム / モード変更</button>
+      </div>
+      <div class="brand-boom">爆弾パス ／ #爆弾パス</div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $=s=>document.querySelector(s);
+  const screens={start:$("#start"),play:$("#play"),boom:$("#boom")};
+  function show(name){for(const k in screens)screens[k].classList.toggle("show",k===name);}
+
+  // ---------- 罰ゲーム：テーマ別パック（絵文字なし・キャバ/学生どちらでも）----------
+  const THEMES={
+    normal:[
+      "一気に飲む","一気→さらにもう半分いく","好きな人に注いでもらって一気","みんなが「もういい」と言うまで飲み続ける",
+      "3秒以内に今の1杯を飲み干す","ドリンクをよく振ってから一気（中身はお楽しみ）","チェイサー無しで濃いめを1杯",
+      "次のゲームまで左手でしか飲めない。破ったら1杯","次のドカンまで飲み物は両手持ち。忘れたら1杯",
+      "一発ギャグ。スベったらもう1杯","全力でモノマネを1つ","変顔で自撮り→1時間そのまま待ち受けに",
+      "セクシーに自己紹介","好きな歌のサビを立って熱唱","その場で全力ダンス3秒","その場で腕立て5回",
+      "犬になって「おかわり」をねだる","泣き真似で「飲みたくない〜」と言ってから飲む","赤ちゃん言葉で次の注文をする",
+      "自分の親のモノマネを披露","「愛してる」を3種類の言い方で誰かに","今日一番おいしかった瞬間を再現",
+      "スマホの最新の写真をみんなに見せる","直近の検索履歴を1つ見せる","LINEの一番上のトークは誰か発表",
+      "好きなタイプを正直に暴露","この中で今日一番タイプな人を指名","人生の黒歴史を1つ告白",
+      "カバン/財布で一番恥ずかしい物を見せる","最後についた嘘を白状","初恋の思い出を語る","今の恋愛状況を正直に",
+      "次の1分、語尾に「にゃ」。忘れたら1杯","次の3ゲーム敬語禁止（タメ口）。破ったら1杯","次の1分、笑ったら1杯",
+      "名前を呼ばれるまで喋れない（次の罰まで）","次の1分「はい/いいえ」を言ったら1杯","次の注文を全部あなたが仕切る",
+      "隣の人の好きな飲み物を当てる。外したら飲む","向かいの人と10秒見つめ合い。先に笑ったらもう1杯",
+      "全員から一言ずつダメ出しを受ける","隣の人にあだ名をつけてもらい今日はそれで呼ばれる",
+      "好きな人を選び腕を組んで1杯（断られたら追加）","じゃんけんで隣に勝つまで飲めない。負けるたび1口",
+      "次のドカンまで、笑い声を「ぶっはっは」に統一"
+    ],
+    love:[
+      "この中で一番タイプな人を正直に指名","好きな人のタイプを具体的に3つ","隣の人の好きなところを1つ告白",
+      "最後に恋をしたのはいつ？正直に","理想のデートプランを熱弁","今ドキッとする仕草を実演",
+      "向かいの人を口説くセリフを1つ","好きな人にLINE送るなら何て送る？読み上げ","元カレ/元カノの一番の思い出",
+      "一番モテた時期のエピソード","隣の人と腕を組んで1杯","この場で連絡先を交換したい人を指名",
+      "キュンとする名前の呼ばれ方をリクエスト","告白された時の理想のシチュを語る","隣の人を10秒間ほめ倒す",
+      "「好き」を一番かわいく言ってみる","初デートで行きたい場所は？理由も","この中で恋人にするなら誰？理由も",
+      "きゅんとした映画/ドラマのシーンを再現","向かいの人と見つめ合って10秒。笑ったら1杯","モテ仕草をひとつ披露",
+      "好きなタイプの声真似で自己紹介","相手を落とすキメ台詞を披露","ハグかハイタッチ、隣の人に選んでもらう",
+      "今かわいい/かっこいいと思う人を全員分言う","理想の告白のセリフを実演"
+    ],
+    spicy:[
+      "一気→さらにもう1杯","ドリンク全部シェイクして一気（中身お楽しみ）","みんなが「もういい」と言うまで飲み続ける",
+      "隣が調合した1杯を飲む（常識の範囲で）","チェイサー無しで濃いめを一気","3秒以内に飲み干す。無理なら追加",
+      "変顔で自撮り→1時間待ち受けに","黒歴史を1つ、洗いざらい話す","写真フォルダの最新5枚を見せる",
+      "直近の検索履歴を3つ見せる","今の恋愛状況を洗いざらい白状","一発ギャグ、ウケるまで連発",
+      "全力でセクシーダンス5秒","その場で腕立て10回","犬になって全員に「おかわり」ねだる",
+      "誰かのモノマネでバレるまで続ける","次の10分、語尾ぜんぶ「〜っす」。破ったら1杯","名前を呼ばれるまで喋れない（次の罰まで）",
+      "全員から一言ずつ本音のダメ出し","一番恥ずかしい持ち物を見せる","好きな人の前でプロポーズの練習",
+      "変な声だけで1分間しゃべる","次の1ゲーム、隣の人の言うことに全部従う","店員さんにも聞こえる声で「乾杯ーーー！」",
+      "モノマネしながら一気","次の罰まで敬語＆正座。崩れたら1杯"
+    ]
+  };
+  let theme="normal";
+  let punBag=[], lastPun=-1;
+  function resetBag(){ punBag=[]; lastPun=-1; }
+  function nextPunish(){
+    const list=THEMES[theme];
+    if(punBag.length===0){
+      punBag=[...Array(list.length).keys()];
+      for(let i=punBag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[punBag[i],punBag[j]]=[punBag[j],punBag[i]];}
+      if(punBag[punBag.length-1]===lastPun && punBag.length>1){[punBag[0],punBag[punBag.length-1]]=[punBag[punBag.length-1],punBag[0]];}
+    }
+    lastPun=punBag.pop();return list[lastPun];
+  }
+  let fuse={min:7,max:16};
+  let ctx=null, gyroOn=false;
+
+  // ---------- audio ----------
+  const AC=window.AudioContext||window.webkitAudioContext;
+  function ensureCtx(){ if(!ctx){ctx=new AC();} if(ctx.state==="suspended")ctx.resume(); }
+  function tick(hi){
+    if(!ctx)return;const t=ctx.currentTime;const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type="square";o.frequency.value=hi?1400:900;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(hi?.35:.22,t+.004);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.07);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.09);
+  }
+  function explode(){
+    if(!ctx)return;const t=ctx.currentTime;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type="sine";o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(28,t+.7);
+    g.gain.setValueAtTime(.9,t);g.gain.exponentialRampToValueAtTime(.0001,t+.85);
+    const ds=ctx.createWaveShaper();const c=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/511-1;c[i]=Math.tanh(x*4);}ds.curve=c;
+    o.connect(ds);ds.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.9);
+    const n=ctx.sampleRate*.9,b=ctx.createBuffer(1,n,ctx.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,1.6);
+    const ns=ctx.createBufferSource();ns.buffer=b;
+    const bp=ctx.createBiquadFilter();bp.type="lowpass";bp.frequency.setValueAtTime(4200,t);bp.frequency.exponentialRampToValueAtTime(300,t+.6);
+    const ng=ctx.createGain();ng.gain.setValueAtTime(.9,t);ng.gain.exponentialRampToValueAtTime(.0001,t+.8);
+    ns.connect(bp);bp.connect(ng);ng.connect(ctx.destination);ns.start(t);
+  }
+  function buzz(p){ if(navigator.vibrate){try{navigator.vibrate(p)}catch(e){}} }
+
+  // ---------- particles ----------
+  const cv=$("#fx"),cx=cv.getContext("2d");let parts=[],W,H,DPR;
+  function sizeCanvas(){DPR=Math.min(2,devicePixelRatio||1);W=cv.width=innerWidth*DPR;H=cv.height=innerHeight*DPR;}
+  sizeCanvas();addEventListener("resize",sizeCanvas);
+  function burst(){
+    const cx0=W/2,cy0=H*0.42;const cols=["#e2543d","#f0d79c","#d8b26a","#fff1cf","#b23a2c"];
+    parts=[];for(let i=0;i<110;i++){const a=Math.random()*Math.PI*2,sp=(4+Math.random()*15)*DPR;
+      parts.push({x:cx0,y:cy0,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-3*DPR,life:1,col:cols[i%cols.length],r:(2.5+Math.random()*6)*DPR});}
+  }
+  (function draw(){
+    cx.clearRect(0,0,W,H);
+    for(const p of parts){p.x+=p.vx;p.y+=p.vy;p.vy+=0.42*DPR;p.vx*=.99;p.life-=0.016;
+      if(p.life<=0)continue;cx.globalAlpha=Math.max(0,p.life);cx.fillStyle=p.col;
+      cx.beginPath();cx.arc(p.x,p.y,p.r*p.life,0,7);cx.fill();}
+    cx.globalAlpha=1;parts=parts.filter(p=>p.life>0);requestAnimationFrame(draw);
+  })();
+
+  // ---------- gyro ----------
+  let tilt=0, spin=0, jerk=0;
+  function onOrient(e){ const b=e.beta||0,g=e.gamma||0; tilt=Math.max(Math.abs(b),Math.abs(g)); }
+  function onMotion(e){
+    const r=e.rotationRate; if(r) spin=Math.max(Math.abs(r.alpha||0),Math.abs(r.beta||0),Math.abs(r.gamma||0));
+    const a=e.acceleration||e.accelerationIncludingGravity;
+    if(a) jerk=Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2);
+  }
+  const gyroBtn=$("#gyroBtn"),startNote=$("#startNote");
+  gyroBtn.addEventListener("click",async()=>{
+    if(gyroOn){gyroOn=false;gyroBtn.dataset.on="0";gyroBtn.textContent="傾け体感モード ── 雑に扱うと早爆";return;}
+    try{
+      const DOE=window.DeviceOrientationEvent, DME=window.DeviceMotionEvent;
+      if(DOE&&typeof DOE.requestPermission==="function"){
+        const r=await DOE.requestPermission();
+        if(r!=="granted"){gyroBtn.dataset.on="err";gyroBtn.textContent="傾け使用不可（タイマーで遊べます）";return;}
+      }
+      if(DME&&typeof DME.requestPermission==="function"){try{await DME.requestPermission()}catch(e){}}
+      if(!("DeviceOrientationEvent" in window)){gyroBtn.dataset.on="err";gyroBtn.textContent="この端末は傾け非対応";return;}
+      window.addEventListener("deviceorientation",onOrient);
+      window.addEventListener("devicemotion",onMotion);
+      gyroOn=true;gyroBtn.dataset.on="1";gyroBtn.textContent="傾け体感モード ON（そっと水平に）";
+      startNote.textContent="そっと水平に持って優しくパス。傾けすぎ・雑に振ると即ドカン。";
+    }catch(err){gyroBtn.dataset.on="err";gyroBtn.textContent="傾け使用不可（タイマーで遊べます）";}
+  });
+
+  // ---------- game ----------
+  const bomb=$("#bomb"),glow=$("#bombGlow"),passWord=$("#passWord"),tiltWarn=$("#tiltWarn");
+  const shake=$("#shake"),flash=$("#flash"),redflood=$("#redflood"),speed=$("#speed");
+  let running=false,raf=0,endAt=0,dur=0,nextTick=0,tickI=0,graceUntil=0,spinDeg=0;
+  const PASS=["パスしろ","早く回せ","次っ","はい次","渡せ渡せ"];
+  const TILT_LIMIT=35, SPIN_LIMIT=270, JERK_LIMIT=20;
+
+  function startGame(){
+    ensureCtx();
+    dur=(fuse.min+Math.random()*(fuse.max-fuse.min));
+    const t0=performance.now();endAt=t0+dur*1000;nextTick=0;tickI=0;running=true;graceUntil=t0+900;
+    tilt=spin=jerk=0;
+    show("play");buzz(30);loop();
+  }
+  function loop(){
+    if(!running)return;
+    const now=performance.now();const remain=Math.max(0,endAt-now);const prog=1-remain/(dur*1000);
+    const pulse=1+0.09*Math.sin(now/(150-prog*110));
+    bomb.style.transform="scale("+pulse.toFixed(3)+")";
+    glow.style.transform="scale("+(0.5+prog*0.8)+")";
+    glow.style.opacity=(0.22+prog*0.6).toFixed(2);
+    redflood.style.opacity=(prog*0.9).toFixed(2);
+    speed.style.opacity=(0.05+prog*0.5).toFixed(2);
+    spinDeg+=0.5+prog*2.0; speed.style.transform="rotate("+spinDeg+"deg)";
+
+    if(gyroOn && now>graceUntil){
+      const dtilt=Math.min(1,tilt/TILT_LIMIT), dspin=Math.min(1,spin/SPIN_LIMIT), djerk=Math.min(1,jerk/JERK_LIMIT);
+      const danger=Math.max(dtilt,dspin,djerk);
+      const glowPx=Math.round(danger*danger*26);
+      tiltWarn.style.boxShadow="inset 0 0 "+glowPx+"px "+glowPx+"px rgba(226,84,61,"+(0.12+danger*0.5).toFixed(2)+")";
+      if(tilt>TILT_LIMIT){ return boom("傾けすぎ！ドカン！"); }
+      if(spin>SPIN_LIMIT || jerk>JERK_LIMIT){ return boom("雑に扱ってドカン！"); }
+    }
+
+    const interval=700-prog*610;
+    if(now>=nextTick){ tick(prog>0.7); tickI++; nextTick=now+interval;
+      if(prog>0.45) buzz(prog>0.8?22:12);
+      passWord.textContent=PASS[tickI%PASS.length];
+    }
+    if(remain<=0){ return boom("ドッカーン！"); }
+    raf=requestAnimationFrame(loop);
+  }
+  function boom(reason){
+    running=false;cancelAnimationFrame(raf);tiltWarn.style.boxShadow="none";redflood.style.opacity="0";speed.style.opacity="0";
+    $("#boomTtl").textContent=reason;
+    explode();burst();buzz([0,90,50,90,50,240]);
+    flash.style.transition="none";flash.style.opacity="0.9";
+    requestAnimationFrame(()=>{flash.style.transition="opacity .5s ease";flash.style.opacity="0";});
+    let s=0;const si=setInterval(()=>{s++;const m=Math.max(0,16-s*1.2);
+      shake.style.transform="translate("+((Math.random()*2-1)*m)+"px,"+((Math.random()*2-1)*m)+"px)";
+      if(m<=0){clearInterval(si);shake.style.transform="";}},28);
+    rollPunish();setTimeout(()=>show("boom"),120);
+  }
+  function rollPunish(){ $("#punText").textContent=nextPunish(); }
+
+  // controls
+  $("#fuses").addEventListener("click",e=>{const b=e.target.closest(".fuse");if(!b)return;
+    document.querySelectorAll(".fuse").forEach(f=>f.setAttribute("aria-pressed",f===b));
+    fuse={min:+b.dataset.min,max:+b.dataset.max};});
+  $("#themes").addEventListener("click",e=>{const b=e.target.closest(".th");if(!b)return;
+    document.querySelectorAll(".th").forEach(f=>f.setAttribute("aria-pressed",f===b));
+    theme=b.dataset.theme; resetBag();});
+  $("#startBtn").addEventListener("click",startGame);
+  $("#againBtn").addEventListener("click",startGame);
+  $("#reroll").addEventListener("click",()=>{ensureCtx();tick(true);rollPunish();});
+  $("#homeBtn").addEventListener("click",()=>{running=false;show("start");});
+})();
+</script>
+
+</body>
+</html>
