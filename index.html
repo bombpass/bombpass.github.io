@@ -267,26 +267,37 @@
 
   // ---------- audio ----------
   const AC=window.AudioContext||window.webkitAudioContext;
-  function ensureCtx(){ if(!ctx){ctx=new AC();} if(ctx.state==="suspended")ctx.resume(); }
+  function ensureCtx(){
+    if(!ctx){
+      ctx=new AC();
+      const comp=ctx.createDynamicsCompressor();      // 音割れ防止リミッター
+      comp.threshold.value=-10;comp.knee.value=8;comp.ratio.value=12;comp.attack.value=0.003;comp.release.value=0.25;
+      const master=ctx.createGain();master.gain.value=0.72;
+      master.connect(comp);comp.connect(ctx.destination);ctx._out=master;
+    }
+    if(ctx.state==="suspended")ctx.resume();
+  }
   function tick(hi){
-    if(!ctx)return;const t=ctx.currentTime;const o=ctx.createOscillator(),g=ctx.createGain();
-    o.type="square";o.frequency.value=hi?1400:900;
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(hi?.35:.22,t+.004);
-    g.gain.exponentialRampToValueAtTime(.0001,t+.07);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.09);
+    if(!ctx)return;const t=ctx.currentTime;
+    const o=ctx.createOscillator(),g=ctx.createGain(),lp=ctx.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=2600;                 // 耳障りな高域をカット
+    o.type="square";o.frequency.value=hi?1250:820;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(hi?.20:.13,t+.005);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.08);o.connect(lp);lp.connect(g);g.connect(ctx._out);o.start(t);o.stop(t+.1);
   }
   function explode(){
     if(!ctx)return;const t=ctx.currentTime;
     const o=ctx.createOscillator(),g=ctx.createGain();
-    o.type="sine";o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(28,t+.7);
-    g.gain.setValueAtTime(.9,t);g.gain.exponentialRampToValueAtTime(.0001,t+.85);
-    const ds=ctx.createWaveShaper();const c=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/511-1;c[i]=Math.tanh(x*4);}ds.curve=c;
-    o.connect(ds);ds.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.9);
+    o.type="sine";o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(30,t+.7);
+    g.gain.setValueAtTime(.6,t);g.gain.exponentialRampToValueAtTime(.0001,t+.85);
+    const ds=ctx.createWaveShaper();const c=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/511-1;c[i]=Math.tanh(x*2);}ds.curve=c;ds.oversample="2x";
+    o.connect(ds);ds.connect(g);g.connect(ctx._out);o.start(t);o.stop(t+.9);
     const n=ctx.sampleRate*.9,b=ctx.createBuffer(1,n,ctx.sampleRate),d=b.getChannelData(0);
     for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,1.6);
     const ns=ctx.createBufferSource();ns.buffer=b;
-    const bp=ctx.createBiquadFilter();bp.type="lowpass";bp.frequency.setValueAtTime(4200,t);bp.frequency.exponentialRampToValueAtTime(300,t+.6);
-    const ng=ctx.createGain();ng.gain.setValueAtTime(.9,t);ng.gain.exponentialRampToValueAtTime(.0001,t+.8);
-    ns.connect(bp);bp.connect(ng);ng.connect(ctx.destination);ns.start(t);
+    const bp=ctx.createBiquadFilter();bp.type="lowpass";bp.frequency.setValueAtTime(3600,t);bp.frequency.exponentialRampToValueAtTime(300,t+.6);
+    const ng=ctx.createGain();ng.gain.setValueAtTime(.5,t);ng.gain.exponentialRampToValueAtTime(.0001,t+.8);
+    ns.connect(bp);bp.connect(ng);ng.connect(ctx._out);ns.start(t);
   }
   function buzz(p){ if(navigator.vibrate){try{navigator.vibrate(p)}catch(e){}} }
 
