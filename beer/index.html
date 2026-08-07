@@ -77,6 +77,7 @@
   <div class="hint" id="hint">スタートしたら<b>スマホを傾けて注ぐ</b>。泡は黄金比を狙え🍺</div>
   <button class="btn motion" id="motionBtn" data-on="0">📱 傾け注ぎモード（スマホ推奨）</button>
   <button class="cta" id="startBtn">スタート</button>
+  <button class="cta" id="cheersBtn" style="display:none">🍺 乾杯！（完成）</button>
 </div>
 
 <script>
@@ -151,7 +152,7 @@
 
   function pourRate(){
     if(!running) return 0;
-    if(motionOn && beta0!==null){ return Math.max(0,Math.min(1,(betaNow-beta0)/50)); } // 手前に50度で全開
+    if(motionOn && beta0!==null){ return Math.max(0,Math.min(1,(betaNow-beta0)/60)); } // 手前に60度で全開（緩め）
     if(touching) return touchRate;
     return 0;
   }
@@ -160,17 +161,17 @@
   function start(){
     AC(); reset(); running=true; beta0=null; lastT=performance.now();
     $("#result").classList.remove("show");
-    $("#startBtn").style.display="none"; $("#motionBtn").style.display="none";
-    hint.innerHTML = motionOn ? 'スマホを<b>手前に傾けて</b>注げ！' : '<b>画面を長押し</b>して注げ！（上ほど強い）';
+    $("#startBtn").style.display="none"; $("#motionBtn").style.display="none"; $("#cheersBtn").style.display="";
+    hint.innerHTML = motionOn ? 'スマホを<b>手前に傾けて</b>注ぐ → いい所で<b>乾杯！</b>' : '<b>画面を長押し</b>して注ぐ → いい所で<b>乾杯！</b>';
   }
   function finish(spilled){
-    running=false; pouring=false; pourSound(false,0);
+    running=false; pouring=false; pourSound(false,0); $("#cheersBtn").style.display="none";
     const total=liquid+foam, ratio=total>0?foam/total:0;
     let score, rate, comment;
     if(spilled){ score=0; rate="こぼした…🫗"; comment="注ぎすぎ！泡がグラスから溢れちゃった"; }
     else{
       const d1=Math.abs(total-TARGET_TOTAL), d2=Math.abs(ratio-TARGET_FOAM);
-      score=Math.round(Math.max(0,Math.min(100,100-d1*185-d2*170)));
+      score=Math.round(Math.max(0,Math.min(100,100-d1*115-d2*90)));  // 採点甘め
       if(score>=90){ rate="神注ぎ！🍺✨"; comment="黄金比！プロ級の一杯"; }
       else if(score>=75){ rate="上手い！👏"; comment="いい泡加減。あと少しで神注ぎ"; }
       else if(score>=55){ rate="まあ飲める🍺"; comment= ratio>TARGET_FOAM?"ちょい泡多め。もう少しゆっくり":"泡少なめ。最後は強めに"; }
@@ -187,8 +188,8 @@
     if(running){
       pouring=p>0.05;
       // fill
-      liquid += p*0.5*dt;
-      foam += p*(0.14+p*0.9)*0.62*dt;
+      liquid += p*0.52*dt;
+      foam += p*(0.07+p*0.5)*0.5*dt;   // 泡を出にくく（casualでも神注ぎ出やすい）
       // settle: 泡が徐々にビールに変わる
       const settle=Math.min(foam, 0.11*dt);
       foam-=settle; liquid+=settle*0.34;
@@ -197,7 +198,7 @@
       const total=liquid+foam;
       if(total>1.02){ finish(true); }
       else {
-        if(p<0.05){ idle+=dt; if(idle>1.0 && total>0.25){ finish(false); } }
+        if(p<0.05){ idle+=dt; if(idle>3.0 && total>0.15){ finish(false); } }
         else idle=0;
       }
       // bubbles
@@ -258,6 +259,11 @@
     cx.save(); glassPath(); cx.clip();
     cx.fillStyle="rgba(255,255,255,.10)"; cx.fillRect(gx+gw*0.14,gy,gw*0.09,gh);
     cx.restore();
+    // OKゾーン帯（この帯で乾杯すれば高得点）
+    cx.save(); glassPath(); cx.clip();
+    const zTop=gy+gh-0.99*gh, zBot=gy+gh-0.82*gh;
+    cx.fillStyle="rgba(120,225,150,.12)"; cx.fillRect(gx-10,zTop,gw+20,zBot-zTop);
+    cx.restore();
     // target zone (perfect line)
     const perfY=gy+gh - TARGET_TOTAL*gh;
     cx.strokeStyle="rgba(255,220,120,.5)"; cx.setLineDash([6*DPR,5*DPR]); cx.lineWidth=1.5*DPR;
@@ -279,6 +285,7 @@
   }
 
   $("#startBtn").addEventListener("click",()=>{ start(); });
+  $("#cheersBtn").addEventListener("click",()=>{ if(running) finish((liquid+foam)>1.02); });
   $("#retryBtn").addEventListener("click",()=>{
     $("#result").classList.remove("show");
     $("#startBtn").style.display=""; $("#motionBtn").style.display="";
