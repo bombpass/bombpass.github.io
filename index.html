@@ -85,6 +85,12 @@
   /* ---------- START ---------- */
   .brandmark{display:flex;flex-direction:column;align-items:center;gap:2px}
   .tag{font-size:11px;letter-spacing:.34em;color:var(--muted);font-weight:600}
+  .livestats{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:36px;opacity:0;transition:opacity .5s}
+  .livestats.show{opacity:1}
+  .livestats .ls-live{font-size:13.5px;font-weight:800;letter-spacing:.02em;color:var(--gold-lt);display:flex;align-items:center;gap:7px}
+  .livestats .ls-live i{width:8px;height:8px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 9px #ff4d4d;animation:blink 1.4s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.3}}
+  .livestats .ls-sub{font-size:11px;color:var(--muted);letter-spacing:.03em;font-variant-numeric:tabular-nums}
 
   /* ---------- PLAY ---------- */
   #play{overflow:hidden}
@@ -146,6 +152,7 @@
         <div class="rule"></div>
         <div class="tag">BAKUDAN PASS</div>
       </div>
+      <div class="livestats" id="liveStats"></div>
       <p class="how">スタート後、<b>みんなで手渡しでパス</b>。<br>火花が近づくほど緊張MAX——<b>爆発した瞬間に持っていた人が負け</b>。</p>
       <div class="rowlbl">導火線の長さ</div>
       <div class="row" id="fuses" role="group" aria-label="導火線の長さ">
@@ -200,6 +207,8 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
 (() => {
   "use strict";
@@ -405,7 +414,7 @@
   function boom(reason){
     running=false;cancelAnimationFrame(raf);tiltWarn.style.boxShadow="none";redflood.style.opacity="0";speed.style.opacity="0";
     $("#boomTtl").textContent=reason;
-    explode();burst();buzz([0,90,50,90,50,240]);
+    explode();burst();buzz([0,90,50,90,50,240]);bumpBooms();
     flash.style.transition="none";flash.style.opacity="0.9";
     requestAnimationFrame(()=>{flash.style.transition="opacity .5s ease";flash.style.opacity="0";});
     let s=0;const si=setInterval(()=>{s++;const m=Math.max(0,16-s*1.2);
@@ -426,6 +435,33 @@
   $("#againBtn").addEventListener("click",startGame);
   $("#reroll").addEventListener("click",()=>{ensureCtx();tick(true);rollPunish();});
   $("#homeBtn").addEventListener("click",()=>{running=false;show("start");});
+
+  // ---------- ライブ数字（Firebase Realtime Database）----------
+  const FB={apiKey:"AIzaSyBHcs6SW4fsfYxnlGsqSuC6spoVGfqAoAM",authDomain:"bombpass-33958.firebaseapp.com",databaseURL:"https://bombpass-33958-default-rtdb.firebaseio.com",projectId:"bombpass-33958",storageBucket:"bombpass-33958.firebasestorage.app",messagingSenderId:"732393893534",appId:"1:732393893534:web:5062caf5d33e124a2e958f"};
+  let fdb=null, boomsN=0, playersN=0, liveN=0;
+  const fmt=n=>(n||0).toLocaleString('ja-JP');
+  function renderStats(){
+    const el=document.getElementById("liveStats"); if(!el) return;
+    const avg=playersN>0?Math.round(boomsN/playersN):0;
+    el.innerHTML='<span class="ls-live"><i></i>いま '+fmt(liveN)+' 人がプレイ中</span>'+
+      '<span class="ls-sub">累計 '+fmt(boomsN)+' 回ドカン ・ のべ '+fmt(playersN)+' 人'+(avg?' ・ 平均 '+avg+' 回':'')+'</span>';
+    el.classList.add('show');
+  }
+  function bumpBooms(){ try{ if(fdb) fdb.ref('stats/booms').transaction(n=>(n||0)+1); }catch(e){} }
+  (function initStats(){
+    try{
+      if(typeof firebase==='undefined') return;
+      firebase.initializeApp(FB); fdb=firebase.database();
+      fdb.ref('stats/booms').on('value',s=>{ boomsN=s.val()||0; renderStats(); });
+      fdb.ref('stats/players').on('value',s=>{ playersN=s.val()||0; renderStats(); });
+      const pres=fdb.ref('presence'); const me=pres.push(); me.onDisconnect().remove(); me.set(true);
+      pres.on('value',s=>{ liveN=s.numChildren(); renderStats(); });
+      if(!localStorage.getItem('bp_counted')){
+        fdb.ref('stats/players').transaction(n=>(n||0)+1);
+        try{ localStorage.setItem('bp_counted','1'); }catch(e){}
+      }
+    }catch(e){}
+  })();
 })();
 </script>
 
