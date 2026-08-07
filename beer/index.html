@@ -42,6 +42,9 @@
   .cta{padding:16px 46px;font-size:22px;font-weight:800;letter-spacing:.12em;color:#3a2400;border:none;border-radius:16px;
     background:linear-gradient(180deg,#ffe6ad,var(--amber) 72%,var(--amber-dk));box-shadow:0 10px 26px rgba(244,165,42,.34);cursor:pointer;font-family:inherit}
   .cta:active{transform:translateY(2px)}
+  .playrow{display:flex;gap:10px;width:100%;max-width:400px;justify-content:center}
+  .playrow .cta{flex:1;padding:16px 8px;font-size:18px;letter-spacing:.04em}
+  .cta.foam{background:linear-gradient(180deg,#ffffff,#ece0c8);color:#3a2400;box-shadow:0 10px 26px rgba(255,255,255,.2)}
 
   /* result overlay */
   #result{position:absolute;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
@@ -77,7 +80,10 @@
   <div class="hint" id="hint">スタートしたら<b>スマホを傾けて注ぐ</b>。泡は黄金比を狙え🍺</div>
   <button class="btn motion" id="motionBtn" data-on="0">📱 傾け注ぎモード（スマホ推奨）</button>
   <button class="cta" id="startBtn">スタート</button>
-  <button class="cta" id="cheersBtn" style="display:none">🍺 乾杯！（完成）</button>
+  <div class="playrow" id="playrow" style="display:none">
+    <button class="cta foam" id="foamBtn">🫧 泡（長押し）</button>
+    <button class="cta" id="cheersBtn">🍺 乾杯！</button>
+  </div>
 </div>
 
 <script>
@@ -122,7 +128,7 @@
 
   // ---- game state ----
   const TARGET_TOTAL=0.92, TARGET_FOAM=0.22; // 泡は全体の約22%
-  let liquid=0, foam=0, bubbles=[], pouring=false, running=false, idle=0, lastT=0, streamW=0;
+  let liquid=0, foam=0, bubbles=[], pouring=false, running=false, idle=0, lastT=0, streamW=0, addingFoam=false;
   function reset(){ liquid=0; foam=0; bubbles=[]; pouring=false; idle=0; streamW=0; }
 
   // ---- tilt control ----
@@ -161,11 +167,11 @@
   function start(){
     AC(); reset(); running=true; beta0=null; lastT=performance.now();
     $("#result").classList.remove("show");
-    $("#startBtn").style.display="none"; $("#motionBtn").style.display="none"; $("#cheersBtn").style.display="";
-    hint.innerHTML = motionOn ? 'スマホを<b>手前に傾けて</b>注ぐ → いい所で<b>乾杯！</b>' : '<b>画面を長押し</b>して注ぐ → いい所で<b>乾杯！</b>';
+    $("#startBtn").style.display="none"; $("#motionBtn").style.display="none"; $("#playrow").style.display="";
+    hint.innerHTML = (motionOn ? 'スマホを傾けてビール' : '画面長押しでビール') + ' → <b>🫧泡</b>で泡を盛る → <b>乾杯！</b>';
   }
   function finish(spilled){
-    running=false; pouring=false; pourSound(false,0); $("#cheersBtn").style.display="none";
+    running=false; pouring=false; addingFoam=false; pourSound(false,0); $("#playrow").style.display="none";
     const total=liquid+foam, ratio=total>0?foam/total:0;
     let score, rate, comment;
     if(spilled){ score=0; rate="こぼした…🫗"; comment="注ぎすぎ！泡がグラスから溢れちゃった"; }
@@ -188,13 +194,13 @@
     if(running){
       pouring=p>0.05;
       // fill
-      liquid += p*0.52*dt;
-      foam += p*(0.07+p*0.5)*0.5*dt;   // 泡を出にくく（casualでも神注ぎ出やすい）
-      // settle: 泡が徐々にビールに変わる
-      const settle=Math.min(foam, 0.11*dt);
-      foam-=settle; liquid+=settle*0.34;
+      liquid += p*0.52*dt;                 // ビール（傾け/長押し）
+      if(addingFoam) foam += 0.5*dt;       // 泡（🫧ボタン長押し）＝サーバーの泡レバー
+      // settle: 泡はゆっくり沈む（頭は残る）
+      const settle=Math.min(foam, 0.03*dt);
+      foam-=settle; liquid+=settle*0.3;
       streamW += ((pouring? (0.4+p*0.6):0) - streamW)*0.25;
-      pourSound(pouring, p);
+      pourSound(pouring||addingFoam, addingFoam?0.6:p);
       const total=liquid+foam;
       if(total>1.02){ finish(true); }
       else {
@@ -286,6 +292,11 @@
 
   $("#startBtn").addEventListener("click",()=>{ start(); });
   $("#cheersBtn").addEventListener("click",()=>{ if(running) finish((liquid+foam)>1.02); });
+  const foamBtn=$("#foamBtn");
+  const fStart=e=>{ e.preventDefault(); if(running){ addingFoam=true; AC(); } };
+  const fEnd=()=>{ addingFoam=false; };
+  foamBtn.addEventListener("pointerdown",fStart);
+  ["pointerup","pointercancel","pointerleave"].forEach(ev=>foamBtn.addEventListener(ev,fEnd));
   $("#retryBtn").addEventListener("click",()=>{
     $("#result").classList.remove("show");
     $("#startBtn").style.display=""; $("#motionBtn").style.display="";
