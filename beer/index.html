@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>神注ぎ — PERFECT POUR</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#140f0a;--bg2:#1f150c;--amber:#f4a52a;--amber-lt:#ffd36b;--amber-dk:#b8790f;
+    --foam:#fff4d8;--ink:#f6ecd8;--muted:#b9a488;--line:rgba(244,165,42,.24);
+    --jp:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:var(--jp);color:var(--ink);
+    background:radial-gradient(90% 60% at 50% -8%, rgba(244,165,42,.14) 0%, rgba(244,165,42,0) 46%), radial-gradient(120% 90% at 50% 8%, #2a1d0e 0%, var(--bg2) 42%, var(--bg) 100%);
+    overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+  .app{position:relative;height:100dvh;display:flex;flex-direction:column;align-items:center;
+    padding:max(14px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom));gap:8px}
+
+  header{text-align:center;flex:0 0 auto}
+  .kicker{font-size:10px;letter-spacing:.42em;text-indent:.42em;font-weight:800;color:var(--amber)}
+  h1{margin:2px 0 0;font-size:clamp(30px,9vw,46px);font-weight:800;letter-spacing:.04em;
+    background:linear-gradient(180deg,#fff6e2,var(--amber-lt) 46%,var(--amber) 78%,var(--amber-dk));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+
+  .stage{position:relative;flex:1 1 auto;width:100%;max-width:460px;min-height:0;display:flex;align-items:center;justify-content:center}
+  canvas#glass{width:100%;height:100%;display:block}
+
+  .hint{font-size:13px;color:var(--muted);letter-spacing:.03em;font-weight:600;text-align:center;min-height:20px}
+  .hint b{color:var(--amber-lt)}
+
+  .btn{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03);color:var(--ink);
+    font-family:inherit;font-weight:800;cursor:pointer;transition:.15s;letter-spacing:.03em}
+  .btn:active{transform:translateY(1px)}
+  .motion{padding:11px 16px;font-size:13px;color:var(--amber);border-color:var(--amber);max-width:360px}
+  .motion[data-on="1"]{background:linear-gradient(180deg,var(--amber-lt),var(--amber));color:#3a2400;border-color:transparent}
+  .motion[data-on="err"]{color:var(--muted);border-color:var(--line)}
+  .cta{padding:16px 46px;font-size:22px;font-weight:800;letter-spacing:.12em;color:#3a2400;border:none;border-radius:16px;
+    background:linear-gradient(180deg,#ffe6ad,var(--amber) 72%,var(--amber-dk));box-shadow:0 10px 26px rgba(244,165,42,.34);cursor:pointer;font-family:inherit}
+  .cta:active{transform:translateY(2px)}
+
+  /* result overlay */
+  #result{position:absolute;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:rgba(10,7,4,.72);backdrop-filter:blur(3px);border-radius:20px;padding:20px}
+  #result.show{display:flex}
+  .rate{font-size:clamp(34px,11vw,58px);font-weight:900;letter-spacing:.03em;color:#fff;text-shadow:0 3px 24px rgba(244,165,42,.6);margin:0;text-wrap:balance;text-align:center}
+  .score{font-size:16px;color:var(--amber-lt);font-weight:800;letter-spacing:.1em}
+  .score b{font-size:40px;font-variant-numeric:tabular-nums}
+  .rcomment{font-size:14px;color:var(--ink);max-width:300px;text-align:center;line-height:1.6}
+
+  .brand{position:absolute;top:max(10px,env(safe-area-inset-top));right:14px;z-index:6;
+    font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--amber);opacity:.8}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header>
+    <div class="kicker">PERFECT POUR</div>
+    <h1>神注ぎ</h1>
+  </header>
+
+  <div class="stage">
+    <canvas id="glass"></canvas>
+    <div class="brand">神注ぎ</div>
+    <div id="result">
+      <h2 class="rate" id="rateText">神注ぎ！</h2>
+      <div class="score">SCORE <b id="scoreNum">0</b></div>
+      <p class="rcomment" id="rcomment"></p>
+      <button class="cta" id="retryBtn">もう一杯</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">スタートしたら<b>スマホを傾けて注ぐ</b>。泡は黄金比を狙え🍺</div>
+  <button class="btn motion" id="motionBtn" data-on="0">📱 傾け注ぎモード（スマホ推奨）</button>
+  <button class="cta" id="startBtn">スタート</button>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $=s=>document.querySelector(s);
+  const cv=$("#glass"), cx=cv.getContext("2d");
+  let W,H,DPR;
+  function resize(){ DPR=Math.min(2,devicePixelRatio||1); const r=cv.getBoundingClientRect();
+    W=cv.width=Math.round(r.width*DPR); H=cv.height=Math.round(r.height*DPR); }
+  addEventListener("resize",resize);
+
+  // ---- audio (simple pour/fizz; screen録画対策のメディア化は後で) ----
+  let actx=null;
+  function AC(){ if(!actx){const A=window.AudioContext||window.webkitAudioContext; actx=new A();} if(actx.state==="suspended")actx.resume(); return actx; }
+  let pourNode=null;
+  function pourSound(on,rate){
+    const c=AC();
+    if(on){
+      if(!pourNode){
+        const n=c.sampleRate*0.5, b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
+        for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
+        const src=c.createBufferSource(); src.buffer=b; src.loop=true;
+        const bp=c.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1200; bp.Q.value=0.6;
+        const g=c.createGain(); g.gain.value=0.0001;
+        src.connect(bp); bp.connect(g); g.connect(c.destination); src.start();
+        pourNode={src,g,bp};
+      }
+      pourNode.g.gain.setTargetAtTime(0.02+rate*0.12, c.currentTime, 0.05);
+      pourNode.bp.frequency.setTargetAtTime(900+rate*1600, c.currentTime, 0.05);
+    } else if(pourNode){
+      pourNode.g.gain.setTargetAtTime(0.0001, c.currentTime, 0.06);
+    }
+  }
+  function ding(good){
+    const c=AC(), t=c.currentTime;
+    [0,4,7].forEach((s,i)=>{ const o=c.createOscillator(),g=c.createGain();
+      o.type="triangle"; o.frequency.value=(good?523:330)*Math.pow(2,s/12);
+      g.gain.setValueAtTime(.0001,t+i*.06); g.gain.exponentialRampToValueAtTime(.25,t+i*.06+.02); g.gain.exponentialRampToValueAtTime(.0001,t+i*.06+.5);
+      o.connect(g);g.connect(c.destination);o.start(t+i*.06);o.stop(t+i*.06+.55); });
+  }
+
+  // ---- game state ----
+  const TARGET_TOTAL=0.92, TARGET_FOAM=0.22; // 泡は全体の約22%
+  let liquid=0, foam=0, bubbles=[], pouring=false, running=false, idle=0, lastT=0, streamW=0;
+  function reset(){ liquid=0; foam=0; bubbles=[]; pouring=false; idle=0; streamW=0; }
+
+  // ---- tilt control ----
+  let motionOn=false, beta0=null, betaNow=0;
+  function onOrient(e){ betaNow=e.beta||0; if(beta0===null)beta0=betaNow; }
+  const motionBtn=$("#motionBtn"), hint=$("#hint");
+  motionBtn.addEventListener("click",async()=>{
+    if(motionOn){motionOn=false;motionBtn.dataset.on="0";motionBtn.textContent="📱 傾け注ぎモード（スマホ推奨）";return;}
+    try{
+      const DOE=window.DeviceOrientationEvent;
+      if(DOE&&typeof DOE.requestPermission==="function"){ const r=await DOE.requestPermission(); if(r!=="granted"){motionBtn.dataset.on="err";motionBtn.textContent="📱 傾け不可（画面長押しで注げます）";return;} }
+      if(!("DeviceOrientationEvent" in window)){motionBtn.dataset.on="err";motionBtn.textContent="📱 傾け非対応（画面長押しで注ぐ）";return;}
+      window.addEventListener("deviceorientation",onOrient);
+      motionOn=true;motionBtn.dataset.on="1";motionBtn.textContent="📱 傾け注ぎ ON";
+      hint.innerHTML='スマホを<b>手前に傾けるほどドバドバ</b>。ゆっくり注ぐと泡少なめ🍺';
+    }catch(e){motionBtn.dataset.on="err";motionBtn.textContent="📱 傾け不可（画面長押しで注ぐ）";}
+  });
+
+  // ---- touch fallback (hold to pour, drag up = 強く) ----
+  let touching=false, touchRate=0.5;
+  function tStart(e){ e.preventDefault(); if(!running)return; touching=true; AC(); updateTouch(e); }
+  function tMove(e){ if(touching) updateTouch(e); }
+  function tEnd(){ touching=false; }
+  function updateTouch(e){ const t=e.touches?e.touches[0]:e; const r=cv.getBoundingClientRect();
+    const y=(t.clientY-r.top)/r.height; touchRate=Math.max(0.15,Math.min(1,1-y)); } // 上ほど強い
+  cv.addEventListener("pointerdown",tStart); addEventListener("pointermove",tMove); addEventListener("pointerup",tEnd); addEventListener("pointercancel",tEnd);
+
+  function pourRate(){
+    if(!running) return 0;
+    if(motionOn && beta0!==null){ return Math.max(0,Math.min(1,(betaNow-beta0)/50)); } // 手前に50度で全開
+    if(touching) return touchRate;
+    return 0;
+  }
+
+  // ---- loop ----
+  function start(){
+    AC(); reset(); running=true; beta0=null; lastT=performance.now();
+    $("#result").classList.remove("show");
+    $("#startBtn").style.display="none"; $("#motionBtn").style.display="none";
+    hint.innerHTML = motionOn ? 'スマホを<b>手前に傾けて</b>注げ！' : '<b>画面を長押し</b>して注げ！（上ほど強い）';
+  }
+  function finish(spilled){
+    running=false; pouring=false; pourSound(false,0);
+    const total=liquid+foam, ratio=total>0?foam/total:0;
+    let score, rate, comment;
+    if(spilled){ score=0; rate="こぼした…🫗"; comment="注ぎすぎ！泡がグラスから溢れちゃった"; }
+    else{
+      const d1=Math.abs(total-TARGET_TOTAL), d2=Math.abs(ratio-TARGET_FOAM);
+      score=Math.round(Math.max(0,Math.min(100,100-d1*185-d2*170)));
+      if(score>=90){ rate="神注ぎ！🍺✨"; comment="黄金比！プロ級の一杯"; }
+      else if(score>=75){ rate="上手い！👏"; comment="いい泡加減。あと少しで神注ぎ"; }
+      else if(score>=55){ rate="まあ飲める🍺"; comment= ratio>TARGET_FOAM?"ちょい泡多め。もう少しゆっくり":"泡少なめ。最後は強めに"; }
+      else { rate= ratio>0.4?"泡だらけｗ🫧":"少なすぎ🥲"; comment= ratio>0.4?"勢いよすぎ！ゆっくり注ごう":"もっと注いで、最後に泡を"; }
+    }
+    $("#rateText").textContent=rate; $("#scoreNum").textContent=score; $("#rcomment").textContent=comment;
+    $("#result").classList.add("show"); ding(score>=75);
+    if(navigator.vibrate) navigator.vibrate(score>=75?[0,60,40,90]:30);
+  }
+
+  function frame(now){
+    const dt=Math.min(0.05,(now-lastT)/1000); lastT=now;
+    const p=pourRate();
+    if(running){
+      pouring=p>0.05;
+      // fill
+      liquid += p*0.5*dt;
+      foam += p*(0.14+p*0.9)*0.62*dt;
+      // settle: 泡が徐々にビールに変わる
+      const settle=Math.min(foam, 0.11*dt);
+      foam-=settle; liquid+=settle*0.34;
+      streamW += ((pouring? (0.4+p*0.6):0) - streamW)*0.25;
+      pourSound(pouring, p);
+      const total=liquid+foam;
+      if(total>1.02){ finish(true); }
+      else {
+        if(p<0.05){ idle+=dt; if(idle>1.0 && total>0.25){ finish(false); } }
+        else idle=0;
+      }
+      // bubbles
+      if(pouring && Math.random()<0.5) bubbles.push({x:Math.random(), y:0, r:1+Math.random()*3, v:0.15+Math.random()*0.3});
+    }
+    bubbles.forEach(b=>{ b.y+=b.v*dt; }); bubbles=bubbles.filter(b=>b.y<liquid);
+    render(p);
+    requestAnimationFrame(frame);
+  }
+
+  // ---- render ----
+  function render(p){
+    cx.clearRect(0,0,W,H);
+    // glass geometry
+    const gw=Math.min(W*0.52, H*0.42), gh=Math.min(H*0.82, gw*1.75);
+    const gx=(W-gw)/2, gy=(H-gh)/2 + H*0.02;
+    const rTop=gw*0.5, rBot=gw*0.42; // slight taper
+    // glass back
+    cx.save();
+    // clip to glass shape
+    function glassPath(){
+      cx.beginPath();
+      cx.moveTo(gx+(gw-2*rTop)/2, gy);
+      cx.lineTo(gx+(gw+2*rTop)/2, gy);
+      cx.lineTo(gx+(gw+2*rBot)/2, gy+gh);
+      cx.lineTo(gx+(gw-2*rBot)/2, gy+gh);
+      cx.closePath();
+    }
+    glassPath(); cx.clip();
+    // fill background inside glass
+    cx.fillStyle="rgba(255,255,255,0.03)"; cx.fillRect(gx-10,gy-10,gw+20,gh+20);
+    const total=Math.min(1.05,liquid+foam);
+    const liqTop = gy+gh - liquid*gh;
+    const foamTop = gy+gh - total*gh;
+    // liquid
+    if(liquid>0.001){
+      const lg=cx.createLinearGradient(0,liqTop,0,gy+gh);
+      lg.addColorStop(0,"#ffcf5e"); lg.addColorStop(.5,"#f4a52a"); lg.addColorStop(1,"#c9800f");
+      cx.fillStyle=lg; cx.fillRect(gx-10,liqTop,gw+20,gy+gh-liqTop);
+      // bubbles
+      cx.fillStyle="rgba(255,240,200,.5)";
+      bubbles.forEach(b=>{ const bx=gx+ b.x*gw; const by=gy+gh-b.y*gh; cx.beginPath();cx.arc(bx,by,b.r*DPR,0,7);cx.fill(); });
+    }
+    // foam
+    if(foam>0.003){
+      cx.fillStyle="#fff6e0"; cx.fillRect(gx-10,foamTop,gw+20, liqTop-foamTop+2);
+      // bubbly top texture
+      cx.fillStyle="#fffaf0";
+      for(let i=0;i<26;i++){ const bx=gx+ (i/25)*gw + (Math.sin(i*3.1)*4); const rr=(3+((i*7)%5))*DPR;
+        cx.beginPath();cx.arc(bx,foamTop+rr*0.3,rr,0,7);cx.fill(); }
+    }
+    cx.restore();
+    // glass outline + highlight
+    glassPath();
+    cx.lineWidth=2.5*DPR; cx.strokeStyle="rgba(255,240,210,.55)"; cx.stroke();
+    cx.lineWidth=6*DPR; cx.strokeStyle="rgba(255,255,255,.06)"; cx.stroke();
+    // highlight streak
+    cx.save(); glassPath(); cx.clip();
+    cx.fillStyle="rgba(255,255,255,.10)"; cx.fillRect(gx+gw*0.14,gy,gw*0.09,gh);
+    cx.restore();
+    // target zone (perfect line)
+    const perfY=gy+gh - TARGET_TOTAL*gh;
+    cx.strokeStyle="rgba(255,220,120,.5)"; cx.setLineDash([6*DPR,5*DPR]); cx.lineWidth=1.5*DPR;
+    cx.beginPath(); cx.moveTo(gx-6*DPR,perfY); cx.lineTo(gx+gw+6*DPR,perfY); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle="rgba(255,220,120,.8)"; cx.font=`${11*DPR}px sans-serif`; cx.textAlign="right";
+    cx.fillText("目標",gx-8*DPR,perfY-4*DPR);
+    // pour stream from top
+    if(streamW>0.02){
+      const sx=gx+gw*0.5, sw=streamW*14*DPR;
+      const sg=cx.createLinearGradient(0,0,0,foamTop); sg.addColorStop(0,"rgba(255,210,110,.9)"); sg.addColorStop(1,"rgba(255,180,70,.7)");
+      cx.fillStyle=sg; cx.fillRect(sx-sw/2, 0, sw, Math.max(0,foamTop));
+    }
+    // pour meter (right side)
+    const mh=gh*0.6, mx=gx+gw+18*DPR, my=gy+gh-mh;
+    if(mx<W-8*DPR){
+      cx.fillStyle="rgba(255,255,255,.08)"; cx.fillRect(mx,my,8*DPR,mh);
+      cx.fillStyle= p>0.75?"#ff6a3d":"#f4a52a"; cx.fillRect(mx,my+mh*(1-p),8*DPR,mh*p);
+    }
+  }
+
+  $("#startBtn").addEventListener("click",()=>{ start(); });
+  $("#retryBtn").addEventListener("click",()=>{
+    $("#result").classList.remove("show");
+    $("#startBtn").style.display=""; $("#motionBtn").style.display="";
+    reset(); render(0);
+    // すぐ次を始めたい人向けに自動スタートはしない
+    start();
+  });
+
+  resize(); render(0); requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
