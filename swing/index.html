@@ -40,6 +40,12 @@
   .soundlabel{ font-size:12px; font-weight:800; min-height:14px; } .msg{ font-size:12px; color:var(--amber); text-align:center; min-height:15px; }
   .foot{ text-align:center; margin-top:6px; } .foot .n{ font-size:9px; color:rgba(255,255,255,.3); } .foot .p{ font-size:10px; font-weight:700; color:rgba(255,255,255,.45); margin-top:2px; }
   .hidden{ display:none !important; }
+  /* インパクト演出 */
+  .fx{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:6; }
+  .flash{ position:fixed; inset:0; background:var(--neon); opacity:0; pointer-events:none; z-index:5; }
+  .dist .v{ transition:transform .18s cubic-bezier(.2,1.6,.4,1); display:inline-block; }
+  @keyframes shake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(3px)} }
+  .shake{ animation:shake .32s ease; }
 </style>
 </head>
 <body>
@@ -70,6 +76,8 @@
   </div>
   <div class="foot"><div class="n">飛距離は実測した速さ・振りの大きさからの推定演出。左右の曲がりは非対応（手持ちの限界）。</div><div class="p">Presented by 夜レジ</div></div>
 </div>
+<div id="flash" class="flash"></div>
+<canvas id="fx" class="fx"></canvas>
 
 <script>
 (function(){
@@ -155,11 +163,12 @@
   // 振りの大きさ＝アドレスからの傾き（空間でどれだけ回ったか）。実データで full=170°基準。
   function sizeFactor(){ return Math.min(1, Math.max(0.05, maxTilt/P.fullTilt)); }
   function playImpactSound(peak){
-    if(maxTilt < P.minTilt){ playSound('hitting', 0.5, 0.9); if(navigator.vibrate)navigator.vibrate(15); return; } // 振り不足＝鈍い弱音
-    const sf=sizeFactor();
-    const hs=peak*P.hsK; // km/h（速さのピークから）
-    playSound(hs>120?'metal':(hs>85?'powerful':'hitting'), Math.min(1,Math.max(0.4,peak/P.maxOmega)), 1.0);
-    if(navigator.vibrate)navigator.vibrate(26);
+    const weak = haveLA ? (peakLin < P.minLin) : (maxTilt < P.minTilt);
+    if(weak){ playSound('hitting', 0.5, 0.9); if(navigator.vibrate)navigator.vibrate(15); impactFx(false); return; } // 手が動いてない＝鈍い弱音
+    const hs = peakLin*P.leverK*3.6;
+    playSound(hs>120?'metal':(hs>70?'powerful':'hitting'), Math.min(1,Math.max(0.45,peakLin/8)), 1.0);
+    if(navigator.vibrate)navigator.vibrate(28);
+    impactFx(true);
   }
 
   let lastResult=null;
@@ -192,7 +201,7 @@
   function prog(n){ $('prog').style.strokeDashoffset=CIRC*(1-Math.max(0.02,n)); }
   function setCenter(t,s){ $('ctitle').textContent=t; $('csub').textContent=s; }
   function showResult(r){
-    $('rDist').textContent=r.distYd; $('rHS').innerHTML=r.hsKmh+'<small> km/h</small>';
+    countUp($('rDist'), r.distYd); resultFx(r.distYd, r.label); $('rHS').innerHTML=r.hsKmh+'<small> km/h</small>';
     $('rTempo').innerHTML=r.linMs+'<small> m/s</small>';
     $('rFace').textContent=r.faceTxt; $('rArc').innerHTML=r.arcPct+'<small> %</small>';
     $('rVerdict').textContent=r.label+'（ミート率 '+r.meetPct+'%）';
@@ -258,6 +267,39 @@
   const CANDS=[['① メタルショット（金属カキーン）','metal'],['② パワフルショット','powerful'],['③ シャープヒット','sharp'],['④ ハードヒット','hard'],['⑤ ヒッティング（軽め）','hitting']];
   let ci=-1;
   $('btnAudition').addEventListener('click', async ()=>{ await resumeAudio(); ci=(ci+1)%CANDS.length; playSound(CANDS[ci][1],1,1); $('soundLabel').textContent='🔊 再生中：'+CANDS[ci][0]; });
+
+  // ===== インパクト演出（撮れる5秒） =====
+  const cv=$('fx'), cx=cv.getContext('2d'); let FW=0,FH=0;
+  function sizeFx(){ const d=Math.min(2,window.devicePixelRatio||1); FW=cv.clientWidth; FH=cv.clientHeight; cv.width=FW*d; cv.height=FH*d; cx.setTransform(d,0,0,d,0,0); }
+  window.addEventListener('resize',sizeFx); sizeFx();
+  let parts=[], ball=null, rafOn=false;
+  function loop(){
+    cx.clearRect(0,0,FW,FH);
+    parts=parts.filter(p=>p.life>0);
+    for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.18; p.life-=0.022; cx.globalAlpha=Math.max(0,p.life); cx.fillStyle=p.c; cx.beginPath(); cx.arc(p.x,p.y,p.r,0,7); cx.fill(); }
+    cx.globalAlpha=1;
+    if(ball){ ball.t+=1/(ball.dur*60);
+      if(ball.t>=1){ ball=null; }
+      else { const t=ball.t, x=ball.x0+(ball.x1-ball.x0)*t, y=ball.y0-(ball.y0-ball.y1)*t-ball.h*4*t*(1-t);
+        ball.trail.push({x,y}); if(ball.trail.length>20)ball.trail.shift();
+        for(let i=0;i<ball.trail.length;i++){ const s=ball.trail[i]; cx.globalAlpha=(i/ball.trail.length)*0.5; cx.fillStyle='#fff'; cx.beginPath(); cx.arc(s.x,s.y,3.5,0,7); cx.fill(); }
+        cx.globalAlpha=1; cx.fillStyle='#fff'; cx.beginPath(); cx.arc(x,y,5.5,0,7); cx.fill(); }
+    }
+    if(parts.length||ball){ requestAnimationFrame(loop); } else { rafOn=false; }
+  }
+  function startLoop(){ if(!rafOn){ rafOn=true; requestAnimationFrame(loop); } }
+  function burst(x,y,color,n,spd){ for(let i=0;i<n;i++){ const a=Math.random()*6.283,s=Math.random()*spd+1; parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1.5,r:Math.random()*2.5+1.5,life:1,c:color}); } startLoop(); }
+  function screenFlash(a){ const f=$('flash'); f.style.transition='none'; f.style.opacity=a; requestAnimationFrame(()=>{ f.style.transition='opacity .45s ease-out'; f.style.opacity=0; }); }
+  function impactFx(real){ screenFlash(real?0.55:0.22); burst(FW*0.5,FH*0.36, real?'#a6ff00':'#888', real?26:10, real?8:4); }
+  function resultFx(dist,label){
+    if(label && label.indexOf('手打ち')<0){
+      const x0=FW*0.30,y0=FH*0.55, reach=Math.min(FW*0.62,FW*0.18+dist*1.4), h=Math.min(FH*0.42,FH*0.10+dist*1.0);
+      ball={t:0,dur:1.15,x0,y0,x1:Math.min(FW*0.94,x0+reach),y1:FH*0.5,h,trail:[]}; startLoop();
+    }
+    if(label==='会心の一撃'){ burst(FW*0.5,FH*0.36,'#ffd54a',34,9); const d=document.querySelector('.dist'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); }
+    else if(label==='ナイスショット'){ burst(FW*0.5,FH*0.36,'#a6ff00',18,6); }
+  }
+  function countUp(el,to){ let cur=0; const step=Math.max(1,Math.ceil(to/22)); el.style.transform='scale(1.35)'; const iv=setInterval(()=>{ cur+=step; if(cur>=to){cur=to;clearInterval(iv);} el.textContent=cur; },22); setTimeout(()=>el.style.transform='scale(1)',210); }
 })();
 </script>
 </body>
