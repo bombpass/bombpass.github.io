@@ -86,9 +86,11 @@
   function setWind(n){ if(!windGain)return; windGain.gain.value=Math.min(1,Math.max(0,n))*0.9; if(windSrc)windSrc.playbackRate.value=0.8+n*1.1; }
   function playSound(name,vol,rate){ const b=buffers[name]; if(!b)return; const s=AC.createBufferSource(); s.buffer=b; s.playbackRate.value=rate||1; const g=AC.createGain(); g.gain.value=vol==null?1:vol; s.connect(g).connect(AC.destination); s.start(); }
   async function resumeAudio(){ try{ if(AC.state==='suspended') await AC.resume(); }catch(e){} }
+  function beep(freq,dur,vol){ try{ const o=AC.createOscillator(),g=AC.createGain(); o.type='sine'; o.frequency.value=freq; o.connect(g).connect(AC.destination); const t=AC.currentTime; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0008,t+dur); o.start(t); o.stop(t+dur); }catch(e){} }
+  function chime(){ beep(880,0.13,0.28); setTimeout(()=>beep(1320,0.2,0.28),120); }
 
-  const P={ still:0.6, windStart:3.0, maxOmega:26.0, impactMin:8.0, minBuildMs:150,
-    radius:1.5, faceMaxDeg:35, fullTilt:90, countdownMs:1600 };
+  const P={ still:0.6, windStart:3.0, maxOmega:26.0, impactMin:8.0, minBuildMs:120,
+    backMin:2.5, radius:1.5, faceMaxDeg:35, fullBackMs:650, countdownMs:2100 };
 
   // ===== 状態 =====
   const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4};
@@ -98,8 +100,9 @@
   let addrGa=0, addrG=null, haveRef=false;
   // 計測
   let buildMs=0, prevOmega=0, peakSeen=0, maxTilt=0, soundFired=false, finishAt=0;
+  let sawBack=false, falling=false, pastTop=false, startT=0, topT=0; // 振りかぶり→トップ→振り下ろしの検知
   const buf=[]; // {t,om,ga}
-  function resetSwing(){ buildMs=0;prevOmega=0;peakSeen=0;maxTilt=0;soundFired=false;finishAt=0;buf.length=0;setWind(0);prog(0); }
+  function resetSwing(){ buildMs=0;prevOmega=0;peakSeen=0;maxTilt=0;soundFired=false;finishAt=0;sawBack=false;falling=false;pastTop=false;startT=0;topT=0;buf.length=0;setWind(0);prog(0); }
   function angd(a,b){ let d=a-b; while(d>180)d-=360; while(d<-180)d+=360; return d; }
   function tiltFrom(ref){ // 現在の重力方向と基準の角度差(度)＝空間でどれだけ傾いたか
     if(!ref||!haveG) return 0;
@@ -115,7 +118,7 @@
     if(state!==ST.READY && state!==ST.SWINGING){ prevOmega=omega; return; }
     if(omega<P.still && state===ST.READY){ stillMs+=dt*1000; prevOmega=omega; return; }
     stillMs=0;
-    if(state===ST.READY){ state=ST.SWINGING; resetSwing(); }
+    if(state===ST.READY){ state=ST.SWINGING; resetSwing(); startT=now; }
 
     buildMs+=dt*1000;
     buf.push({t:now,om:omega,ga:curGa}); if(buf.length>300)buf.shift();
@@ -123,17 +126,31 @@
     const t=tiltFrom(addrG); if(t>maxTilt)maxTilt=t;
     if(omega>P.windStart) emitWind(omega);
 
-    // 本当のインパクト＝速さのピーク（下降に転じた瞬間）。ここで鳴らす＝正しいタイミング。
-    if(!soundFired && buildMs>=P.minBuildMs && prevOmega>=P.impactMin && omega<prevOmega){
-      soundFired=true; playImpactSound(prevOmega); finishAt=now;
+    // 振りかぶり→トップ→振り下ろし の検知（＝座り手首スナップを弾く核）
+    if(omega>=P.backMin) sawBack=true;
+    if(sawBack && !pastTop){
+      if(omega < prevOmega) falling=true;                 // 振りかぶりが減速（トップへ）
+      else if(falling && omega > prevOmega+0.2){ pastTop=true; topT=now; } // トップ通過→振り下ろし開始
+    }
+
+    // インパクト＝振り下ろしの速さピーク（下降に転じた瞬間）でのみ鳴らす
+    if(!soundFired && pastTop && buildMs>=P.minBuildMs && prevOmega>=P.impactMin && omega<prevOmega){
+      soundFired=true; finishAt=now; playImpactSound(prevOmega, true);
+    }
+    // 振りかぶり無し（＝手打ち/スナップ）：ピークが来たのに pastTop でない → 弱い手打ち音
+    else if(!soundFired && !pastTop && buildMs>=P.minBuildMs && prevOmega>=P.impactMin && omega<prevOmega && sawBack){
+      soundFired=true; finishAt=now; playImpactSound(prevOmega, false);
     }
     if(soundFired && (now-finishAt>60)) finalizeSwing();
     prevOmega=omega;
   }
   function emitWind(omega){ const n=Math.min(1,Math.max(0,(omega-P.windStart)/(P.maxOmega-P.windStart))); setWind(n); prog(n); }
-  function playImpactSound(peak){
-    const arcF=Math.min(1,maxTilt/P.fullTilt);
-    const power=peak*(0.3+0.7*arcF);
+  function backswingMs(){ return pastTop ? (topT-startT) : 0; }
+  function sizeFactor(){ return Math.min(1, Math.max(0.05, backswingMs()/P.fullBackMs)); }
+  function playImpactSound(peak, real){
+    const sf=sizeFactor();
+    if(!real || sf<0.25){ playSound('hitting', 0.5, 0.9); if(navigator.vibrate)navigator.vibrate(15); return; } // 手打ち＝鈍い弱音
+    const power=peak*(0.4+0.6*sf);
     const hs=power*P.radius*3.6;
     playSound(hs>120?'metal':(hs>80?'powerful':'hitting'), Math.min(1,Math.max(0.4,power/P.maxOmega)), 1.0);
     if(navigator.vibrate)navigator.vibrate(26);
@@ -143,21 +160,21 @@
   function finalizeSwing(){ state=ST.FINISH; stillMs=0; setWind(0); prog(0); lastResult=analyze(); showResult(lastResult); $('againRow').classList.remove('hidden'); $('msg').textContent='👍 アドレスに戻すと自動で次へ / もう一球でもOK'; }
   function analyze(){
     let iImp=0,mx=-1; for(let i=0;i<buf.length;i++){ if(buf[i].om>mx){mx=buf[i].om;iImp=i;} }
-    let iTop=0,mn=1e9; for(let i=0;i<=iImp;i++){ if(buf[i].om<mn){mn=buf[i].om;iTop=i;} }
-    const s=buf[0]||{t:0},top=buf[iTop]||s,imp=buf[iImp]||s;
-    const arcPct=Math.round(Math.min(1,maxTilt/P.fullTilt)*100);
-    const arcF=Math.min(1,maxTilt/P.fullTilt);
-    const power=mx*(0.3+0.7*arcF);
+    const imp=buf[iImp]||{t:0,ga:0};
+    // 振りかぶりの大きさ（＝スナップ判別。飽和しない）
+    const backMs=backswingMs(); const downMs=pastTop?Math.max(1,imp.t-topT):0;
+    const sf=sizeFactor(); const arcPct=Math.round(sf*100);
+    let tempo = (pastTop && downMs>0) ? backMs/downMs : null; if(tempo!=null&&(!isFinite(tempo)||tempo<=0))tempo=null;
+    const power=mx*(0.4+0.6*sf);
     const hsKmh=Math.round(power*P.radius*3.6);
-    let backMs=Math.max(1,top.t-s.t),downMs=Math.max(1,imp.t-top.t); let tempo=backMs/downMs; if(!isFinite(tempo)||tempo<=0)tempo=null;
     let faceDeg=null,faceTxt='—'; if(haveRef){ const dG=angd(imp.ga,addrGa); faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
-    const tempoScore=tempo!=null?Math.max(0,1-Math.abs(tempo-3)/2.2):0.4;
+    const tempoScore=tempo!=null?Math.max(0,1-Math.abs(tempo-3)/2.2):0.3;
     const sqScore=faceDeg!=null?Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg):0.5;
-    const q=0.30*sqScore+0.30*tempoScore+0.40*arcF;
+    const q=0.25*sqScore+0.30*tempoScore+0.45*sf;
     const smash=1.15+q*0.33; const meetPct=Math.round(smash/1.5*100);
-    const ballMph=(hsKmh/1.609)*smash; const distYd=Math.max(0,Math.round(ballMph*1.4*arcF));
-    let label=arcPct<25?'手打ち（振り不足）':(q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット')));
-    return {hsKmh,tempo,faceTxt,arcPct,meetPct,distYd,label,q,maxTilt:Math.round(maxTilt),peak:mx.toFixed(1)};
+    const distYd = (!pastTop || sf<0.25) ? Math.round(mx*3*sf) : Math.round(mx*13*sf);
+    let label=(!pastTop||sf<0.25)?'手打ち（振りかぶり不足）':(q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット')));
+    return {hsKmh,tempo,faceTxt,arcPct,meetPct,distYd,label,q,backMs:Math.round(backMs),downMs:Math.round(downMs),peak:mx.toFixed(1),tilt:Math.round(maxTilt)};
   }
 
   function prog(n){ $('prog').style.strokeDashoffset=CIRC*(1-Math.max(0.02,n)); }
@@ -167,7 +184,7 @@
     $('rTempo').innerHTML=(r.tempo!=null?r.tempo.toFixed(1):'--')+'<small> :1</small>';
     $('rFace').textContent=r.faceTxt; $('rArc').innerHTML=r.arcPct+'<small> %</small>';
     $('rVerdict').textContent=r.label+'（ミート率 '+r.meetPct+'%）';
-    $('diag').textContent='調整用データ → 振り角 '+r.maxTilt+'° / 速さ(ω) '+r.peak+' / テンポ '+(r.tempo!=null?r.tempo.toFixed(1):'-')+':1';
+    $('diag').textContent='調整用 → 振りかぶり '+r.backMs+'ms / 振り下ろし '+r.downMs+'ms / 速さω '+r.peak+' / 傾き'+r.tilt+'°';
     setCenter(r.label,'NICE SWING!'); const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
   function clearResult(){ ['rDist','rFace'].forEach(id=>$(id).textContent='--'); $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> :1</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; $('diag').textContent=''; }
@@ -195,15 +212,20 @@
 
   // アドレスで基準を確定（重力方向＋roll）＝フェースと振り角の両方に使う
   function startCountdown(){
-    state=ST.CALIB; clearResult(); $('againRow').classList.add('hidden');
-    const startT=performance.now();
+    state=ST.CALIB; clearResult(); $('againRow').classList.add('hidden'); $('emoji').textContent='🧍';
+    const t0=performance.now(); let lastN=99;
+    $('msg').textContent='⚙️ セットアップ：この向きを基準にします';
     const iv=setInterval(()=>{
-      const el=performance.now()-startT; prog(Math.min(1,el/P.countdownMs));
-      setCenter('アドレスで構えて','基準セット '+Math.max(0,Math.ceil((P.countdownMs-el)/1000)));
+      const el=performance.now()-t0; prog(Math.min(1,el/P.countdownMs));
+      const n=Math.max(1,Math.ceil((P.countdownMs-el)/(P.countdownMs/3)));
+      setCenter('⚙️ 基準をセット中','アドレスで動かさないで … '+n);
+      if(n!==lastN){ lastN=n; beep(660,0.09,0.22); }   // ピッ ピッ ピッ
       if(el>=P.countdownMs){ clearInterval(iv);
         if(haveG){ addrG={x:curG.x,y:curG.y,z:curG.z}; } addrGa=curGa; haveRef=(haveG||haveOri);
-        state=ST.READY; resetSwing(); setCenter('振りかぶって\n振り下ろす','READY'); $('msg').textContent=''; }
-    },60);
+        chime(); $('emoji').textContent='✅'; setCenter('基準セット完了！','この向きが「まっすぐ」'); $('msg').textContent='';
+        setTimeout(()=>{ $('emoji').textContent='🏌️'; state=ST.READY; resetSwing(); setCenter('振りかぶって\n振り下ろす','振ってOK！'); }, 900);
+      }
+    },50);
   }
 
   $('btnMain').addEventListener('click', async ()=>{
