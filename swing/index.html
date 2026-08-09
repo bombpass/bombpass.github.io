@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>NICE SWING — SWING SOUND LAB</title>
+<style>
+  :root{ --neon:#a6ff00; --bg:#0a0d0a; --card:rgba(255,255,255,.05); }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    background:var(--bg); color:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    padding:max(16px,env(safe-area-inset-top)) 22px max(20px,env(safe-area-inset-bottom));
+    overflow:hidden; user-select:none; -webkit-user-select:none;
+  }
+  .wrap{ width:100%; max-width:460px; height:100%; display:flex; flex-direction:column; }
+  header{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .title{ font-size:28px; font-weight:800; letter-spacing:.5px; }
+  .sub{ font-size:11px; font-weight:700; letter-spacing:3px; color:var(--neon); margin-top:2px; }
+  .safe{ font-size:12px; font-weight:600; color:rgba(255,255,255,.85);
+    background:rgba(255,255,255,.08); padding:6px 12px; border-radius:99px; }
+  .ringwrap{ flex:1; display:flex; align-items:center; justify-content:center; }
+  .ring{ position:relative; width:260px; height:260px; }
+  svg{ transform:rotate(-90deg); width:100%; height:100%; }
+  .track{ fill:none; stroke:rgba(255,255,255,.06); stroke-width:18; }
+  .prog{ fill:none; stroke:var(--neon); stroke-width:18; stroke-linecap:round;
+    transition:stroke-dashoffset .05s linear; filter:drop-shadow(0 0 0 var(--neon)); }
+  .center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:40px; text-align:center; }
+  .emoji{ font-size:54px; transition:transform .25s cubic-bezier(.2,1.4,.4,1); }
+  .ctitle{ font-size:20px; font-weight:800; white-space:pre-line; }
+  .csub{ font-size:11px; font-weight:700; letter-spacing:2px; color:rgba(255,255,255,.4); }
+  .metrics{ display:flex; background:var(--card); border-radius:16px; padding:14px 10px; margin-top:4px; }
+  .metric{ flex:1; text-align:center; }
+  .mval{ font-size:26px; font-weight:800; } .munit{ font-size:11px; font-weight:700; color:rgba(255,255,255,.5); margin-left:3px; }
+  .mlabel{ font-size:10px; font-weight:600; color:rgba(255,255,255,.4); margin-top:2px; }
+  .divider{ width:1px; background:rgba(255,255,255,.1); margin:4px 0; }
+  .controls{ margin-top:16px; display:flex; flex-direction:column; gap:14px; align-items:center; }
+  .primary{ width:100%; border:none; border-radius:99px; padding:18px; font-size:18px; font-weight:800;
+    color:#000; background:var(--neon); }
+  .primary.stop{ background:rgba(255,255,255,.85); }
+  .audition{ background:none; border:1px solid rgba(166,255,0,.5); color:var(--neon);
+    font-size:14px; font-weight:700; padding:10px 16px; border-radius:99px; }
+  .soundlabel{ font-size:13px; font-weight:800; min-height:16px; }
+  .foot{ text-align:center; margin-top:12px; }
+  .foot .n{ font-size:9px; color:rgba(255,255,255,.3); }
+  .foot .p{ font-size:10px; font-weight:700; color:rgba(255,255,255,.45); margin-top:2px; }
+  .dbg{ font-size:10px; color:rgba(255,255,255,.35); margin-top:6px; font-variant-numeric:tabular-nums; }
+  .msg{ font-size:12px; color:#ffcf5a; text-align:center; min-height:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="title">NICE SWING</div>
+      <div class="sub">SWING SOUND LAB</div>
+    </div>
+    <div class="safe">🛡 安全</div>
+  </header>
+
+  <div class="ringwrap">
+    <div class="ring">
+      <svg viewBox="0 0 120 120">
+        <circle class="track" cx="60" cy="60" r="52"></circle>
+        <circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle>
+      </svg>
+      <div class="center">
+        <div class="emoji" id="emoji">🏌️</div>
+        <div class="ctitle" id="ctitle">安全を確認して
+スタート</div>
+        <div class="csub" id="csub">MOTION READY</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><span class="mval" id="mSpeed">--</span><span class="munit">km/h</span><div class="mlabel">推定速度</div></div>
+    <div class="divider"></div>
+    <div class="metric"><span class="mval" id="mOmega">--</span><span class="munit">rad/s</span><div class="mlabel">角速度ω</div></div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="btnMain">▶ 構える</button>
+    <button class="audition" id="btnAudition">🎵 本物カキーン候補を聴く（タップで次の音）</button>
+    <div class="soundlabel" id="soundLabel"></div>
+    <div class="msg" id="msg"></div>
+    <div class="dbg" id="dbg"></div>
+  </div>
+
+  <div class="foot">
+    <div class="n">推定値はゲーム演出です。実際の飛距離・球筋とは異なります。</div>
+    <div class="p">Presented by 夜レジ</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const CIRC = 2 * Math.PI * 52; // 326.7
+
+  // ===== 音（Web Audio） =====
+  const AC = new (window.AudioContext || window.webkitAudioContext)({ latencyHint:'interactive' });
+  const buffers = {};
+  const SOUNDS = {
+    whoosh:'sounds/whoosh.wav',
+    metal:'sounds/real_metal_shot.mp3',
+    powerful:'sounds/real_powerful_shot.mp3',
+    sharp:'sounds/real_sharp_hit.mp3',
+    hard:'sounds/real_hard_hit.mp3',
+    hitting:'sounds/real_hitting_ball.mp3',
+  };
+  async function loadAll(){
+    await Promise.all(Object.entries(SOUNDS).map(async ([k,url])=>{
+      try{
+        const ab = await (await fetch(url)).arrayBuffer();
+        buffers[k] = await AC.decodeAudioData(ab);
+      }catch(e){ console.warn('load fail', k, e); }
+    }));
+  }
+  loadAll();
+
+  let windSrc=null, windGain=null;
+  function startWind(){
+    if(!buffers.whoosh) return;
+    stopWindNode();
+    windSrc = AC.createBufferSource(); windSrc.buffer = buffers.whoosh; windSrc.loop = true;
+    windGain = AC.createGain(); windGain.gain.value = 0;
+    windSrc.connect(windGain).connect(AC.destination);
+    windSrc.start();
+  }
+  function stopWindNode(){ try{ if(windSrc){ windSrc.stop(); } }catch(e){} windSrc=null; windGain=null; }
+  function setWind(norm){
+    if(!windGain) return;
+    windGain.gain.value = Math.min(1, Math.max(0, norm)) * 0.9;
+    if(windSrc) windSrc.playbackRate.value = 0.8 + norm * 1.0;
+  }
+  function playBuffer(name, vol){
+    const b = buffers[name]; if(!b) return;
+    const s = AC.createBufferSource(); s.buffer = b;
+    const g = AC.createGain(); g.gain.value = vol==null?1:vol;
+    s.connect(g).connect(AC.destination); s.start();
+  }
+
+  // ===== スイング検出（ネイティブから移植） =====
+  const TH = { windStart:3.0, impact:10.0, dropRatio:0.12, maxOmega:28.0, cooldownMs:500 };
+  let state='idle', peak=0, cooldownUntil=0;
+  function ingest(omega, now){
+    if(state==='cooldown'){ if(now < cooldownUntil) return; state='idle'; }
+    if(state==='idle'){
+      if(omega >= TH.windStart){ state='swinging'; peak=omega; emitWind(omega); }
+    } else if(state==='swinging'){
+      if(omega>peak) peak=omega;
+      emitWind(omega);
+      if(peak>=TH.impact && omega <= peak*(1-TH.dropRatio)){ fire(); }
+      else if(omega < TH.windStart && peak < TH.impact){ state='idle'; peak=0; setWind(0); prog(0); }
+    }
+  }
+  function emitWind(omega){
+    const norm = Math.min(1, Math.max(0, (omega-TH.windStart)/(TH.maxOmega-TH.windStart)));
+    setWind(norm); prog(norm);
+  }
+  function tierFor(p){ return p<12 ? 'hitting' : (p<20 ? 'powerful' : 'metal'); }
+  function fire(){
+    const p = peak; state='cooldown'; cooldownUntil = performance.now()+TH.cooldownMs; peak=0;
+    setWind(0); prog(0);
+    const vol = Math.min(1, Math.max(0.3, p/TH.maxOmega));
+    playBuffer(tierFor(p), vol);
+    if(navigator.vibrate) navigator.vibrate(30); // iOSは無効（無害）
+    showResult(p);
+  }
+
+  // ===== UI =====
+  function prog(norm){ $('prog').style.strokeDashoffset = CIRC*(1-Math.max(0.02,norm)); }
+  function setCenter(title, sub){ $('ctitle').textContent=title; $('csub').textContent=sub; }
+  function showResult(p){
+    const kmh = Math.min(340, Math.round(p*11));
+    $('mSpeed').textContent = kmh; $('mOmega').textContent = p.toFixed(0);
+    const labels = {hitting:'ミートせず', powerful:'ナイスショット', metal:'会心の一撃'};
+    setCenter(labels[tierFor(p)], 'NICE SWING!');
+    const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)', 220);
+  }
+
+  // ===== 実機モーション =====
+  let running=false, lastT=0;
+  function onMotion(ev){
+    const r = ev.rotationRate; if(!r) return;
+    const toRad = Math.PI/180; // iOSは deg/s
+    const wx=(r.alpha||0)*toRad, wy=(r.beta||0)*toRad, wz=(r.gamma||0)*toRad;
+    const omega = Math.hypot(wx,wy,wz);
+    const now = performance.now();
+    ingest(omega, now);
+    if(now-lastT>100){ lastT=now; $('dbg').textContent='ω(live): '+omega.toFixed(1)+' rad/s'; }
+  }
+  async function startMotion(){
+    try{
+      if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
+        const res = await DeviceMotionEvent.requestPermission();
+        if(res!=='granted'){ $('msg').textContent='モーション許可が必要です（設定→Safari→モーションとﾃﾞﾊﾞｲｽの向き）'; return false; }
+      }
+      window.addEventListener('devicemotion', onMotion, true);
+      return true;
+    }catch(e){ $('msg').textContent='この端末ではモーションが使えません。「音だけ」で確認できます。'; return false; }
+  }
+  function stopMotion(){ window.removeEventListener('devicemotion', onMotion, true); }
+
+  // ===== ボタン =====
+  let armed=false;
+  $('btnMain').addEventListener('click', async ()=>{
+    if(AC.state==='suspended') await AC.resume();
+    if(!armed){
+      const ok = await startMotion();
+      startWind();
+      armed=true; running=true;
+      $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop');
+      setCenter('振ってOK','SWING NOW'); $('msg').textContent = ok? '' : '（センサー無し：音だけ確認モード）';
+    }else{
+      stopMotion(); stopWindNode();
+      armed=false; running=false;
+      $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
+      setCenter('安全を確認して\nスタート','MOTION READY'); prog(0);
+      $('mSpeed').textContent='--'; $('mOmega').textContent='--'; $('dbg').textContent='';
+    }
+  });
+
+  const CANDS = [
+    ['① メタルショット（金属カキーン）','metal'],
+    ['② パワフルショット','powerful'],
+    ['③ シャープヒット','sharp'],
+    ['④ ハードヒット','hard'],
+    ['⑤ ヒッティング（軽め）','hitting'],
+  ];
+  let ci=-1;
+  $('btnAudition').addEventListener('click', async ()=>{
+    if(AC.state==='suspended') await AC.resume();
+    ci = (ci+1)%CANDS.length;
+    playBuffer(CANDS[ci][1], 1);
+    $('soundLabel').textContent = '🔊 再生中：'+CANDS[ci][0];
+  });
+})();
+</script>
+</body>
+</html>
