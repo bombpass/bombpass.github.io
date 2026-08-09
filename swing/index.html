@@ -162,8 +162,8 @@
     goodPeak: 15.0,    // これ以上でヘッドスピード満点扱い
     cooldownMs: 550,
   };
-  let armed=false;
-  let buildMs=0, buildAngle=0, peak=0, prevOmega=0, stillMs=0, cooldownUntil=0, canImpact=false;
+  let armed=false, awaitingSettle=false, settleMs=0, motionSeen=false;
+  let buildMs=0, buildAngle=0, peak=0, prevOmega=0, stillMs=0, canImpact=false;
   let dotSum=0, dotCount=0, prevUnit=null;
 
   function resetSwing(){
@@ -172,9 +172,17 @@
     stepOn(1);
   }
 
-  function ingest(wx,wy,wz, omega, dt, now){
+  function ingest(wx,wy,wz, omega, dt){
     if(!armed) return;
-    if(now < cooldownUntil){ prevOmega=omega; return; }
+
+    // インパクト後：一度アドレス（静止）に戻るまで次を受け付けない＝戻し動作の誤爆防止
+    if(awaitingSettle){
+      if(omega < P.still){
+        settleMs += dt*1000;
+        if(settleMs > 300){ awaitingSettle=false; settleMs=0; resetSwing(); setCenter('振りかぶって\n振り下ろす','SWING NOW'); $('msg').textContent=''; }
+      } else { settleMs = 0; }
+      prevOmega = omega; return;
+    }
 
     if(omega < P.still){
       stillMs += dt*1000;
@@ -185,12 +193,11 @@
 
     // 溜めの蓄積
     buildMs += dt*1000; buildAngle += omega*dt;
-    if(buildMs >= P.minBuildMs && buildAngle >= P.minBuildAngle){
-      canImpact = true;
-      stepOn(3);
-    } else {
-      stepOn(2);
-    }
+    canImpact = (buildMs >= P.minBuildMs && buildAngle >= P.minBuildAngle);
+    stepOn(canImpact ? 3 : 2);
+
+    // 風切りは振りかぶり中から鳴らす（リアリティ）
+    if(omega > P.windStart) emitWind(omega);
 
     if(canImpact){
       // 軌道の素直さ（回転軸の一貫性）を蓄積
@@ -200,8 +207,6 @@
       prevUnit=[ux,uy,uz];
 
       if(omega > peak) peak = omega;
-      emitWind(omega);
-
       // ピーク通過＝インパクト（1フレームで即発火＝遅延最小）
       if(peak >= P.impact && omega < prevOmega){ fire(); }
     }
@@ -223,7 +228,7 @@
   function fire(){
     const p = peak;
     const {q} = computeQuality();
-    cooldownUntil = performance.now() + P.cooldownMs;
+    awaitingSettle = true; settleMs = 0;   // 一度アドレスに戻すまでロック（戻し動作の誤爆防止）
 
     // キレ/速さで音を選ぶ＝「良い/悪いショットで音が変わる」
     let name, label;
@@ -236,7 +241,8 @@
     if(navigator.vibrate) navigator.vibrate(28); // iOSは無効（無害）
 
     showResult(p, q, label);
-    // 次に備えてリセット（armは維持）
+    $('msg').textContent = '👍 一度アドレスに戻すと、次が振れる';
+    // 次に備えてリセット（armは維持・再受付はアドレス静止後）
     buildMs=0; buildAngle=0; peak=0; canImpact=false; dotSum=0; dotCount=0; prevUnit=null;
     setWind(0); prog(0);
   }
@@ -254,40 +260,50 @@
 
   // ===== 実機モーション =====
   function onMotion(ev){
+    motionSeen = true;
     const r = ev.rotationRate; if(!r) return;
     const toRad = Math.PI/180; // iOSは deg/s
     const wx=(r.alpha||0)*toRad, wy=(r.beta||0)*toRad, wz=(r.gamma||0)*toRad;
     const omega = Math.hypot(wx,wy,wz);
     const dt = (ev.interval && ev.interval>0) ? ev.interval : 0.016;
-    ingest(wx,wy,wz, omega, dt, performance.now());
+    ingest(wx,wy,wz, omega, dt);
   }
   async function startMotion(){
     try{
       if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
-        const res = await DeviceMotionEvent.requestPermission();
-        if(res!=='granted'){ $('msg').textContent='モーション許可が必要（設定→Safari→モーションとﾃﾞﾊﾞｲｽの向き→オン）'; return false; }
+        let res;
+        try{ res = await DeviceMotionEvent.requestPermission(); }
+        catch(e){ $('msg').textContent='許可ダイアログを出せませんでした。もう一度「構える」を押してみて。'; return false; }
+        if(res!=='granted'){
+          $('msg').textContent='モーションが不許可です。設定→Safari→「モーションと画面の向きのアクセス」をオン→ページ再読み込み。';
+          return false;
+        }
       }
+      motionSeen=false;
       window.addEventListener('devicemotion', onMotion, true);
+      setTimeout(()=>{ if(armed && !motionSeen){ $('msg').textContent='センサー値が届きません。端末を少し動かすか、Safariのモーション許可を確認して。'; } }, 1300);
       return true;
-    }catch(e){ $('msg').textContent='この端末はモーション非対応。「音だけ」で確認できます。'; return false; }
+    }catch(e){ $('msg').textContent='この端末はモーション非対応です。「音だけ」で確認できます。'; return false; }
   }
   function stopMotion(){ window.removeEventListener('devicemotion', onMotion, true); }
 
   // ===== ボタン =====
   $('btnMain').addEventListener('click', async ()=>{
-    if(AC.state==='suspended') await AC.resume();
     if(!armed){
-      armed=true;
+      armed=true; awaitingSettle=false; settleMs=0;
+      // ★モーション許可を"最初"に要求（awaitより前＝ユーザー操作の文脈を壊さない）
       const ok = await startMotion();
+      // その後で音声を有効化
+      try{ if(AC.state==='suspended') await AC.resume(); }catch(e){}
       startWind(); resetSwing();
       $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop');
       setCenter('振りかぶって\n振り下ろす','SWING NOW');
-      $('msg').textContent = ok ? '' : '（センサー無し：音だけ確認モード）';
+      if(ok) $('msg').textContent='';   // 不許可時は startMotion の診断メッセージを残す
     }else{
-      armed=false; stopMotion(); stopWindNode();
+      armed=false; awaitingSettle=false; stopMotion(); stopWindNode();
       $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
       setCenter('安全を確認して\nスタート','MOTION READY'); prog(0);
-      $('mSpeed').textContent='--'; $('mQuality').textContent='--';
+      $('mSpeed').textContent='--'; $('mQuality').textContent='--'; $('msg').textContent='';
       [1,2,3].forEach(i=>$('st'+i).classList.remove('on'));
     }
   });
