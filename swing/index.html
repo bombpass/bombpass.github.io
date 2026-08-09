@@ -7,30 +7,33 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>NICE SWING — SWING SOUND LAB</title>
 <style>
-  :root{ --neon:#a6ff00; --bg:#0a0d0a; --card:rgba(255,255,255,.05); }
+  :root{ --neon:#a6ff00; --bg:#0a0d0a; --card:rgba(255,255,255,.05); --amber:#ffcf5a; }
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; }
   body{
     background:var(--bg); color:#fff;
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     display:flex; flex-direction:column; align-items:center;
-    padding:max(16px,env(safe-area-inset-top)) 22px max(20px,env(safe-area-inset-bottom));
+    padding:max(14px,env(safe-area-inset-top)) 22px max(18px,env(safe-area-inset-bottom));
     overflow:hidden; user-select:none; -webkit-user-select:none;
   }
   .wrap{ width:100%; max-width:460px; height:100%; display:flex; flex-direction:column; }
   header{ display:flex; justify-content:space-between; align-items:flex-start; }
-  .title{ font-size:28px; font-weight:800; letter-spacing:.5px; }
+  .title{ font-size:27px; font-weight:800; letter-spacing:.5px; }
   .sub{ font-size:11px; font-weight:700; letter-spacing:3px; color:var(--neon); margin-top:2px; }
   .safe{ font-size:12px; font-weight:600; color:rgba(255,255,255,.85);
     background:rgba(255,255,255,.08); padding:6px 12px; border-radius:99px; }
+  .steps{ display:flex; gap:6px; justify-content:center; margin-top:10px; }
+  .step{ font-size:10px; font-weight:700; color:rgba(255,255,255,.4); padding:4px 9px; border-radius:99px; background:rgba(255,255,255,.05); }
+  .step.on{ color:#000; background:var(--neon); }
   .ringwrap{ flex:1; display:flex; align-items:center; justify-content:center; }
-  .ring{ position:relative; width:260px; height:260px; }
+  .ring{ position:relative; width:250px; height:250px; }
   svg{ transform:rotate(-90deg); width:100%; height:100%; }
   .track{ fill:none; stroke:rgba(255,255,255,.06); stroke-width:18; }
   .prog{ fill:none; stroke:var(--neon); stroke-width:18; stroke-linecap:round;
-    transition:stroke-dashoffset .05s linear; filter:drop-shadow(0 0 0 var(--neon)); }
-  .center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:40px; text-align:center; }
-  .emoji{ font-size:54px; transition:transform .25s cubic-bezier(.2,1.4,.4,1); }
+    transition:stroke-dashoffset .04s linear; }
+  .center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:38px; text-align:center; }
+  .emoji{ font-size:52px; transition:transform .22s cubic-bezier(.2,1.5,.4,1); }
   .ctitle{ font-size:20px; font-weight:800; white-space:pre-line; }
   .csub{ font-size:11px; font-weight:700; letter-spacing:2px; color:rgba(255,255,255,.4); }
   .metrics{ display:flex; background:var(--card); border-radius:16px; padding:14px 10px; margin-top:4px; }
@@ -38,18 +41,17 @@
   .mval{ font-size:26px; font-weight:800; } .munit{ font-size:11px; font-weight:700; color:rgba(255,255,255,.5); margin-left:3px; }
   .mlabel{ font-size:10px; font-weight:600; color:rgba(255,255,255,.4); margin-top:2px; }
   .divider{ width:1px; background:rgba(255,255,255,.1); margin:4px 0; }
-  .controls{ margin-top:16px; display:flex; flex-direction:column; gap:14px; align-items:center; }
+  .controls{ margin-top:16px; display:flex; flex-direction:column; gap:12px; align-items:center; }
   .primary{ width:100%; border:none; border-radius:99px; padding:18px; font-size:18px; font-weight:800;
     color:#000; background:var(--neon); }
   .primary.stop{ background:rgba(255,255,255,.85); }
   .audition{ background:none; border:1px solid rgba(166,255,0,.5); color:var(--neon);
-    font-size:14px; font-weight:700; padding:10px 16px; border-radius:99px; }
+    font-size:13px; font-weight:700; padding:9px 16px; border-radius:99px; }
   .soundlabel{ font-size:13px; font-weight:800; min-height:16px; }
-  .foot{ text-align:center; margin-top:12px; }
+  .foot{ text-align:center; margin-top:10px; }
   .foot .n{ font-size:9px; color:rgba(255,255,255,.3); }
   .foot .p{ font-size:10px; font-weight:700; color:rgba(255,255,255,.45); margin-top:2px; }
-  .dbg{ font-size:10px; color:rgba(255,255,255,.35); margin-top:6px; font-variant-numeric:tabular-nums; }
-  .msg{ font-size:12px; color:#ffcf5a; text-align:center; min-height:14px; }
+  .msg{ font-size:12px; color:var(--amber); text-align:center; min-height:14px; }
 </style>
 </head>
 <body>
@@ -61,6 +63,12 @@
     </div>
     <div class="safe">🛡 安全</div>
   </header>
+
+  <div class="steps">
+    <div class="step" id="st1">① 構える</div>
+    <div class="step" id="st2">② 振りかぶる</div>
+    <div class="step" id="st3">③ 振り下ろす</div>
+  </div>
 
   <div class="ringwrap">
     <div class="ring">
@@ -78,17 +86,16 @@
   </div>
 
   <div class="metrics">
-    <div class="metric"><span class="mval" id="mSpeed">--</span><span class="munit">km/h</span><div class="mlabel">推定速度</div></div>
+    <div class="metric"><span class="mval" id="mSpeed">--</span><span class="munit">km/h</span><div class="mlabel">推定ヘッドスピード</div></div>
     <div class="divider"></div>
-    <div class="metric"><span class="mval" id="mOmega">--</span><span class="munit">rad/s</span><div class="mlabel">角速度ω</div></div>
+    <div class="metric"><span class="mval" id="mQuality">--</span><span class="munit">%</span><div class="mlabel">スイングのキレ</div></div>
   </div>
 
   <div class="controls">
     <button class="primary" id="btnMain">▶ 構える</button>
-    <button class="audition" id="btnAudition">🎵 本物カキーン候補を聴く（タップで次の音）</button>
+    <button class="audition" id="btnAudition">🎵 打球音の候補を聴く（タップで次）</button>
     <div class="soundlabel" id="soundLabel"></div>
     <div class="msg" id="msg"></div>
-    <div class="dbg" id="dbg"></div>
   </div>
 
   <div class="foot">
@@ -101,7 +108,7 @@
 (function(){
   "use strict";
   const $ = id => document.getElementById(id);
-  const CIRC = 2 * Math.PI * 52; // 326.7
+  const CIRC = 2 * Math.PI * 52;
 
   // ===== 音（Web Audio） =====
   const AC = new (window.AudioContext || window.webkitAudioContext)({ latencyHint:'interactive' });
@@ -114,116 +121,174 @@
     hard:'sounds/real_hard_hit.mp3',
     hitting:'sounds/real_hitting_ball.mp3',
   };
-  async function loadAll(){
+  (async function loadAll(){
     await Promise.all(Object.entries(SOUNDS).map(async ([k,url])=>{
-      try{
-        const ab = await (await fetch(url)).arrayBuffer();
-        buffers[k] = await AC.decodeAudioData(ab);
-      }catch(e){ console.warn('load fail', k, e); }
+      try{ buffers[k] = await AC.decodeAudioData(await (await fetch(url)).arrayBuffer()); }
+      catch(e){ console.warn('load fail', k, e); }
     }));
-  }
-  loadAll();
+  })();
 
   let windSrc=null, windGain=null;
   function startWind(){
-    if(!buffers.whoosh) return;
-    stopWindNode();
+    if(!buffers.whoosh) return; stopWindNode();
     windSrc = AC.createBufferSource(); windSrc.buffer = buffers.whoosh; windSrc.loop = true;
     windGain = AC.createGain(); windGain.gain.value = 0;
-    windSrc.connect(windGain).connect(AC.destination);
-    windSrc.start();
+    windSrc.connect(windGain).connect(AC.destination); windSrc.start();
   }
-  function stopWindNode(){ try{ if(windSrc){ windSrc.stop(); } }catch(e){} windSrc=null; windGain=null; }
+  function stopWindNode(){ try{ if(windSrc) windSrc.stop(); }catch(e){} windSrc=null; windGain=null; }
   function setWind(norm){
     if(!windGain) return;
-    windGain.gain.value = Math.min(1, Math.max(0, norm)) * 0.9;
-    if(windSrc) windSrc.playbackRate.value = 0.8 + norm * 1.0;
+    windGain.gain.value = Math.min(1,Math.max(0,norm))*0.9;
+    if(windSrc) windSrc.playbackRate.value = 0.8 + norm*1.1;
   }
-  function playBuffer(name, vol){
+  // rate=ピッチ（キレで少し明るく）, vol=音量（速さで）
+  function playSound(name, vol, rate){
     const b = buffers[name]; if(!b) return;
-    const s = AC.createBufferSource(); s.buffer = b;
+    const s = AC.createBufferSource(); s.buffer = b; s.playbackRate.value = rate||1;
     const g = AC.createGain(); g.gain.value = vol==null?1:vol;
     s.connect(g).connect(AC.destination); s.start();
   }
 
-  // ===== スイング検出（ネイティブから移植） =====
-  const TH = { windStart:3.0, impact:10.0, dropRatio:0.12, maxOmega:28.0, cooldownMs:500 };
-  let state='idle', peak=0, cooldownUntil=0;
-  function ingest(omega, now){
-    if(state==='cooldown'){ if(now < cooldownUntil) return; state='idle'; }
-    if(state==='idle'){
-      if(omega >= TH.windStart){ state='swinging'; peak=omega; emitWind(omega); }
-    } else if(state==='swinging'){
-      if(omega>peak) peak=omega;
-      emitWind(omega);
-      if(peak>=TH.impact && omega <= peak*(1-TH.dropRatio)){ fire(); }
-      else if(omega < TH.windStart && peak < TH.impact){ state='idle'; peak=0; setWind(0); prog(0); }
+  // ===== スイング検出 v2 =====
+  // 流れ: 構える → 振りかぶり/振り下ろし（連続モーション）→ ピーク＝インパクト
+  // ただの一撃(フリック)では鳴らない：一定時間の"溜め"を必須にする。
+  const P = {
+    still: 0.6,        // これ未満は「静止」rad/s
+    impact: 8.5,       // インパクト成立の最低ピーク rad/s
+    windStart: 3.0,    // 風が鳴り始める
+    maxOmega: 26.0,    // 正規化の上限
+    minBuildMs: 150,   // インパクト前に必要な"溜め"時間(ms)＝フリック除外
+    minBuildAngle: 0.5,// 必要な積分回転角(rad)
+    goodPeak: 15.0,    // これ以上でヘッドスピード満点扱い
+    cooldownMs: 550,
+  };
+  let armed=false;
+  let buildMs=0, buildAngle=0, peak=0, prevOmega=0, stillMs=0, cooldownUntil=0, canImpact=false;
+  let dotSum=0, dotCount=0, prevUnit=null;
+
+  function resetSwing(){
+    buildMs=0; buildAngle=0; peak=0; canImpact=false;
+    dotSum=0; dotCount=0; prevUnit=null; setWind(0); prog(0);
+    stepOn(1);
+  }
+
+  function ingest(wx,wy,wz, omega, dt, now){
+    if(!armed) return;
+    if(now < cooldownUntil){ prevOmega=omega; return; }
+
+    if(omega < P.still){
+      stillMs += dt*1000;
+      if(stillMs > 250) resetSwing();   // 動きが止まったら溜めリセット（トップの一瞬の間は許容）
+      prevOmega = omega; return;
     }
+    stillMs = 0;
+
+    // 溜めの蓄積
+    buildMs += dt*1000; buildAngle += omega*dt;
+    if(buildMs >= P.minBuildMs && buildAngle >= P.minBuildAngle){
+      canImpact = true;
+      stepOn(3);
+    } else {
+      stepOn(2);
+    }
+
+    if(canImpact){
+      // 軌道の素直さ（回転軸の一貫性）を蓄積
+      const mag = Math.hypot(wx,wy,wz) || 1;
+      const ux=wx/mag, uy=wy/mag, uz=wz/mag;
+      if(prevUnit){ dotSum += ux*prevUnit[0]+uy*prevUnit[1]+uz*prevUnit[2]; dotCount++; }
+      prevUnit=[ux,uy,uz];
+
+      if(omega > peak) peak = omega;
+      emitWind(omega);
+
+      // ピーク通過＝インパクト（1フレームで即発火＝遅延最小）
+      if(peak >= P.impact && omega < prevOmega){ fire(); }
+    }
+    prevOmega = omega;
   }
+
   function emitWind(omega){
-    const norm = Math.min(1, Math.max(0, (omega-TH.windStart)/(TH.maxOmega-TH.windStart)));
-    setWind(norm); prog(norm);
+    const n = Math.min(1, Math.max(0, (omega-P.windStart)/(P.maxOmega-P.windStart)));
+    setWind(n); prog(n);
   }
-  function tierFor(p){ return p<12 ? 'hitting' : (p<20 ? 'powerful' : 'metal'); }
+
+  function computeQuality(){
+    const speedScore = Math.min(1, Math.max(0, (peak - P.impact)/(P.goodPeak - P.impact)));
+    let cleanScore = 0.5;
+    if(dotCount>0){ cleanScore = Math.min(1, Math.max(0, (dotSum/dotCount - 0.4)/0.6)); }
+    return { q: 0.5*speedScore + 0.5*cleanScore, speedScore, cleanScore };
+  }
+
   function fire(){
-    const p = peak; state='cooldown'; cooldownUntil = performance.now()+TH.cooldownMs; peak=0;
+    const p = peak;
+    const {q} = computeQuality();
+    cooldownUntil = performance.now() + P.cooldownMs;
+
+    // キレ/速さで音を選ぶ＝「良い/悪いショットで音が変わる」
+    let name, label;
+    if(q >= 0.66){ name='metal';    label='会心の一撃'; }
+    else if(q >= 0.4){ name='powerful'; label='ナイスショット'; }
+    else { name='hitting'; label='ミスヒット'; }
+    const vol  = Math.min(1, Math.max(0.35, p/P.maxOmega));
+    const rate = 0.94 + q*0.16;                 // キレると少し明るく
+    playSound(name, vol, rate);
+    if(navigator.vibrate) navigator.vibrate(28); // iOSは無効（無害）
+
+    showResult(p, q, label);
+    // 次に備えてリセット（armは維持）
+    buildMs=0; buildAngle=0; peak=0; canImpact=false; dotSum=0; dotCount=0; prevUnit=null;
     setWind(0); prog(0);
-    const vol = Math.min(1, Math.max(0.3, p/TH.maxOmega));
-    playBuffer(tierFor(p), vol);
-    if(navigator.vibrate) navigator.vibrate(30); // iOSは無効（無害）
-    showResult(p);
   }
 
   // ===== UI =====
   function prog(norm){ $('prog').style.strokeDashoffset = CIRC*(1-Math.max(0.02,norm)); }
-  function setCenter(title, sub){ $('ctitle').textContent=title; $('csub').textContent=sub; }
-  function showResult(p){
-    const kmh = Math.min(340, Math.round(p*11));
-    $('mSpeed').textContent = kmh; $('mOmega').textContent = p.toFixed(0);
-    const labels = {hitting:'ミートせず', powerful:'ナイスショット', metal:'会心の一撃'};
-    setCenter(labels[tierFor(p)], 'NICE SWING!');
-    const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)', 220);
+  function setCenter(t,s){ $('ctitle').textContent=t; $('csub').textContent=s; }
+  function stepOn(n){ [1,2,3].forEach(i=>$('st'+i).classList.toggle('on', i<=n && armed)); }
+  function showResult(p, q, label){
+    $('mSpeed').textContent = Math.min(340, Math.round(p*11));
+    $('mQuality').textContent = Math.round(q*100);
+    setCenter(label, 'NICE SWING!');
+    const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
 
   // ===== 実機モーション =====
-  let running=false, lastT=0;
   function onMotion(ev){
     const r = ev.rotationRate; if(!r) return;
     const toRad = Math.PI/180; // iOSは deg/s
     const wx=(r.alpha||0)*toRad, wy=(r.beta||0)*toRad, wz=(r.gamma||0)*toRad;
     const omega = Math.hypot(wx,wy,wz);
-    const now = performance.now();
-    ingest(omega, now);
-    if(now-lastT>100){ lastT=now; $('dbg').textContent='ω(live): '+omega.toFixed(1)+' rad/s'; }
+    const dt = (ev.interval && ev.interval>0) ? ev.interval : 0.016;
+    ingest(wx,wy,wz, omega, dt, performance.now());
   }
   async function startMotion(){
     try{
       if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
         const res = await DeviceMotionEvent.requestPermission();
-        if(res!=='granted'){ $('msg').textContent='モーション許可が必要です（設定→Safari→モーションとﾃﾞﾊﾞｲｽの向き）'; return false; }
+        if(res!=='granted'){ $('msg').textContent='モーション許可が必要（設定→Safari→モーションとﾃﾞﾊﾞｲｽの向き→オン）'; return false; }
       }
       window.addEventListener('devicemotion', onMotion, true);
       return true;
-    }catch(e){ $('msg').textContent='この端末ではモーションが使えません。「音だけ」で確認できます。'; return false; }
+    }catch(e){ $('msg').textContent='この端末はモーション非対応。「音だけ」で確認できます。'; return false; }
   }
   function stopMotion(){ window.removeEventListener('devicemotion', onMotion, true); }
 
   // ===== ボタン =====
-  let armed=false;
   $('btnMain').addEventListener('click', async ()=>{
     if(AC.state==='suspended') await AC.resume();
     if(!armed){
+      armed=true;
       const ok = await startMotion();
-      startWind();
-      armed=true; running=true;
+      startWind(); resetSwing();
       $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop');
-      setCenter('振ってOK','SWING NOW'); $('msg').textContent = ok? '' : '（センサー無し：音だけ確認モード）';
+      setCenter('振りかぶって\n振り下ろす','SWING NOW');
+      $('msg').textContent = ok ? '' : '（センサー無し：音だけ確認モード）';
     }else{
-      stopMotion(); stopWindNode();
-      armed=false; running=false;
+      armed=false; stopMotion(); stopWindNode();
       $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
       setCenter('安全を確認して\nスタート','MOTION READY'); prog(0);
-      $('mSpeed').textContent='--'; $('mOmega').textContent='--'; $('dbg').textContent='';
+      $('mSpeed').textContent='--'; $('mQuality').textContent='--';
+      [1,2,3].forEach(i=>$('st'+i).classList.remove('on'));
     }
   });
 
@@ -237,9 +302,9 @@
   let ci=-1;
   $('btnAudition').addEventListener('click', async ()=>{
     if(AC.state==='suspended') await AC.resume();
-    ci = (ci+1)%CANDS.length;
-    playBuffer(CANDS[ci][1], 1);
-    $('soundLabel').textContent = '🔊 再生中：'+CANDS[ci][0];
+    ci=(ci+1)%CANDS.length;
+    playSound(CANDS[ci][1], 1, 1);
+    $('soundLabel').textContent='🔊 再生中：'+CANDS[ci][0];
   });
 })();
 </script>
