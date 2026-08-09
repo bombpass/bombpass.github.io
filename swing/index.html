@@ -90,7 +90,8 @@
   function chime(){ beep(880,0.13,0.28); setTimeout(()=>beep(1320,0.2,0.28),120); }
 
   const P={ still:0.6, windStart:3.0, maxOmega:26.0, impactMin:12.0, minBuildMs:120,
-    faceMaxDeg:35, fullTilt:170, minTilt:55, hsK:6.7, distK:11, countdownMs:2100 };
+    faceMaxDeg:35, fullTilt:170, minTilt:55, hsK:6.7, distK:11,
+    fullPath:2.8, minMove:0.5, leverK:5.0, distK2:27, countdownMs:2100 }; // fullPath=実測フルスイング3.18m基準
 
   // ===== 状態 =====
   const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4};
@@ -170,15 +171,16 @@
     const moved = pathLen;            // m（積分した移動距離）
     const linMs = peakLin;            // m/s（手の最大速さ）
     const havePath = haveLA && (moved>0 || linMs>0);
-    const sf = havePath ? Math.min(1, moved/1.4) : sizeFactor();
+    const sf = havePath ? Math.min(1, moved/P.fullPath) : sizeFactor();
     const arcPct = Math.round(sf*100);
-    const small = havePath ? (moved < 0.30) : (maxTilt < P.minTilt); // 手がほぼ動いてない＝手打ち
-    const hsKmh=Math.round(mx*P.hsK); // ヘッドスピードは従来通り速さのピークから（推定）
+    const small = havePath ? (moved < P.minMove) : (maxTilt < P.minTilt); // 手がほぼ動いてない＝手打ち
+    // ★ヘッドスピードも"手速(直線)"ベースに（手首回転ωだと座りスナップと差が出ないため）
+    const hsKmh = Math.round( havePath ? Math.min(230, linMs*P.leverK*3.6) : mx*P.hsK );
     let faceDeg=null,faceTxt='—'; if(haveRef){ const dG=angd(imp.ga,addrGa); faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
     const sqScore=faceDeg!=null?Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg):0.5;
     const q=0.35*sqScore+0.65*sf;
     const smash=1.15+q*0.33; const meetPct=Math.round(smash/1.5*100);
-    const distYd = small ? Math.round(Math.max(0,(mx-4))*3*sf) : Math.round(Math.max(0,(mx-3))*P.distK*sf);
+    const distYd = small ? Math.round(linMs*4*sf) : Math.round( havePath ? linMs*P.distK2*sf : Math.max(0,(mx-3))*P.distK*sf );
     let label = small ? '手打ち（手が動いてない）' : (q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット')));
     return {hsKmh,faceTxt,arcPct,meetPct,distYd,label,q,peak:mx.toFixed(1),tilt:Math.round(maxTilt),durMs,
             moved:moved.toFixed(2),linMs:linMs.toFixed(1),havePath};
