@@ -154,23 +154,28 @@
   // ただの一撃(フリック)では鳴らない：一定時間の"溜め"を必須にする。
   const P = {
     still: 0.6,        // これ未満は「静止」rad/s
-    impact: 8.5,       // インパクト成立の最低ピーク rad/s
+    fire: 9.0,         // 立ち上がりでこれを超えたら発火（ピークより前＝約0.1s早い）
     windStart: 3.0,    // 風が鳴り始める
     maxOmega: 26.0,    // 正規化の上限
     minBuildMs: 150,   // インパクト前に必要な"溜め"時間(ms)＝フリック除外
     minBuildAngle: 0.5,// 必要な積分回転角(rad)
-    goodPeak: 15.0,    // これ以上でヘッドスピード満点扱い
-    cooldownMs: 550,
+    goodPeak: 18.0,    // これ以上でヘッドスピード満点扱い（厳しめ）
+    faceMaxDeg: 35,    // アドレス基準からこれ以上ズレたら完全ミス
+    lead: 0.06,        // 発火時のピーク外挿秒
   };
   let armed=false, awaitingSettle=false, settleMs=0, motionSeen=false;
-  let buildMs=0, buildAngle=0, peak=0, prevOmega=0, stillMs=0, canImpact=false;
+  let buildMs=0, buildAngle=0, peak=0, prevOmega=0, stillMs=0, canImpact=false, fired=false;
   let dotSum=0, dotCount=0, prevUnit=null;
+  // 向き（角度キャリブレ用）
+  let curBeta=0, curGamma=0, haveOri=false;
+  let addrGamma=0, haveAddr=false;
 
   function resetSwing(){
-    buildMs=0; buildAngle=0; peak=0; canImpact=false;
+    buildMs=0; buildAngle=0; peak=0; canImpact=false; fired=false;
     dotSum=0; dotCount=0; prevUnit=null; setWind(0); prog(0);
     stepOn(1);
   }
+  function angDiff(a,b){ let d=a-b; while(d>180)d-=360; while(d<-180)d+=360; return d; }
 
   function ingest(wx,wy,wz, omega, dt){
     if(!armed) return;
@@ -186,7 +191,8 @@
 
     if(omega < P.still){
       stillMs += dt*1000;
-      if(stillMs > 250) resetSwing();   // 動きが止まったら溜めリセット（トップの一瞬の間は許容）
+      if(haveOri){ addrGamma = curGamma; haveAddr = true; } // 静止＝アドレス基準を随時更新
+      if(stillMs > 250) resetSwing();
       prevOmega = omega; return;
     }
     stillMs = 0;
@@ -205,10 +211,15 @@
       const ux=wx/mag, uy=wy/mag, uz=wz/mag;
       if(prevUnit){ dotSum += ux*prevUnit[0]+uy*prevUnit[1]+uz*prevUnit[2]; dotCount++; }
       prevUnit=[ux,uy,uz];
-
       if(omega > peak) peak = omega;
-      // ピーク通過＝インパクト（1フレームで即発火＝遅延最小）
-      if(peak >= P.impact && omega < prevOmega){ fire(); }
+
+      // 早め発火：立ち上がりで fire を超えた瞬間（ピーク前＝遅延を先取り）
+      if(!fired && omega >= P.fire && omega > prevOmega){
+        const rate = Math.max(0, (omega - prevOmega)/Math.max(dt,0.001));
+        const peakEst = omega + rate * P.lead; // 発火後に伸びるピークを外挿
+        fired = true;
+        doImpact(peakEst);
+      }
     }
     prevOmega = omega;
   }
@@ -218,32 +229,38 @@
     setWind(n); prog(n);
   }
 
-  function computeQuality(){
-    const speedScore = Math.min(1, Math.max(0, (peak - P.impact)/(P.goodPeak - P.impact)));
+  // 速さ＋フェースのスクエア度＋軌道の素直さ で総合評価
+  function computeQuality(peakEst){
+    const speedScore = Math.min(1, Math.max(0, (peakEst - P.fire)/(P.goodPeak - P.fire)));
     let cleanScore = 0.5;
-    if(dotCount>0){ cleanScore = Math.min(1, Math.max(0, (dotSum/dotCount - 0.4)/0.6)); }
-    return { q: 0.5*speedScore + 0.5*cleanScore, speedScore, cleanScore };
+    if(dotCount>0){ cleanScore = Math.min(1, Math.max(0, (dotSum/dotCount - 0.6)/0.4)); } // 厳しめ
+    let squareness = 0.5, faceDeg = null, faceDir = '';
+    if(haveAddr && haveOri){
+      const dG = angDiff(curGamma, addrGamma);   // インパクト時のフェースのズレ
+      faceDeg = Math.abs(dG);
+      squareness = Math.min(1, Math.max(0, 1 - faceDeg / P.faceMaxDeg));
+      faceDir = dG > 6 ? '開き' : (dG < -6 ? '被り' : 'スクエア');
+    }
+    const q = 0.35*speedScore + 0.45*squareness + 0.20*cleanScore;
+    return { q, speedScore, squareness, cleanScore, faceDeg, faceDir };
   }
 
-  function fire(){
-    const p = peak;
-    const {q} = computeQuality();
-    awaitingSettle = true; settleMs = 0;   // 一度アドレスに戻すまでロック（戻し動作の誤爆防止）
+  function doImpact(peakEst){
+    const r = computeQuality(peakEst);
+    awaitingSettle = true; settleMs = 0;
 
-    // キレ/速さで音を選ぶ＝「良い/悪いショットで音が変わる」
     let name, label;
-    if(q >= 0.66){ name='metal';    label='会心の一撃'; }
-    else if(q >= 0.4){ name='powerful'; label='ナイスショット'; }
-    else { name='hitting'; label='ミスヒット'; }
-    const vol  = Math.min(1, Math.max(0.35, p/P.maxOmega));
-    const rate = 0.94 + q*0.16;                 // キレると少し明るく
-    playSound(name, vol, rate);
-    if(navigator.vibrate) navigator.vibrate(28); // iOSは無効（無害）
+    if(r.q >= 0.7){ name='metal'; label='会心の一撃'; }
+    else if(r.q >= 0.45){ name='powerful'; label='ナイスショット'; }
+    else { name='hitting'; label = (r.squareness < 0.4 && r.faceDeg!=null) ? 'こすり球' : 'ミスヒット'; }
 
-    showResult(p, q, label);
+    const vol  = Math.min(1, Math.max(0.35, peakEst/P.maxOmega));
+    const rate = 0.92 + r.q*0.18;   // キレると明るく
+    playSound(name, vol, rate);
+    if(navigator.vibrate) navigator.vibrate(28);
+
+    showResult(peakEst, r, label);
     $('msg').textContent = '👍 一度アドレスに戻すと、次が振れる';
-    // 次に備えてリセット（armは維持・再受付はアドレス静止後）
-    buildMs=0; buildAngle=0; peak=0; canImpact=false; dotSum=0; dotCount=0; prevUnit=null;
     setWind(0); prog(0);
   }
 
@@ -251,14 +268,19 @@
   function prog(norm){ $('prog').style.strokeDashoffset = CIRC*(1-Math.max(0.02,norm)); }
   function setCenter(t,s){ $('ctitle').textContent=t; $('csub').textContent=s; }
   function stepOn(n){ [1,2,3].forEach(i=>$('st'+i).classList.toggle('on', i<=n && armed)); }
-  function showResult(p, q, label){
-    $('mSpeed').textContent = Math.min(340, Math.round(p*11));
-    $('mQuality').textContent = Math.round(q*100);
-    setCenter(label, 'NICE SWING!');
+  function speedKmh(peakEst){ return Math.min(255, Math.max(0, Math.round((peakEst-3)*8))); }
+  function showResult(peakEst, r, label){
+    $('mSpeed').textContent = speedKmh(peakEst);
+    $('mQuality').textContent = Math.round(r.q*100);
+    let sub = 'NICE SWING!';
+    if(r.faceDeg != null){
+      sub = (r.faceDir==='スクエア') ? 'フェース スクエア' : ('フェース '+r.faceDir+Math.round(r.faceDeg)+'°');
+    }
+    setCenter(label, sub);
     const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
 
-  // ===== 実機モーション =====
+  // ===== 実機センサー =====
   function onMotion(ev){
     motionSeen = true;
     const r = ev.rotationRate; if(!r) return;
@@ -268,7 +290,11 @@
     const dt = (ev.interval && ev.interval>0) ? ev.interval : 0.016;
     ingest(wx,wy,wz, omega, dt);
   }
-  async function startMotion(){
+  function onOrient(ev){
+    if(ev.beta==null && ev.gamma==null) return;
+    curBeta = ev.beta||0; curGamma = ev.gamma||0; haveOri = true;
+  }
+  async function startSensors(){
     try{
       if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
         let res;
@@ -279,28 +305,34 @@
           return false;
         }
       }
-      motionSeen=false;
+      // 向きセンサー（角度用・ベストエフォート）
+      if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+        try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
+      }
+      motionSeen=false; haveOri=false; haveAddr=false;
       window.addEventListener('devicemotion', onMotion, true);
+      window.addEventListener('deviceorientation', onOrient, true);
       setTimeout(()=>{ if(armed && !motionSeen){ $('msg').textContent='センサー値が届きません。端末を少し動かすか、Safariのモーション許可を確認して。'; } }, 1300);
       return true;
     }catch(e){ $('msg').textContent='この端末はモーション非対応です。「音だけ」で確認できます。'; return false; }
   }
-  function stopMotion(){ window.removeEventListener('devicemotion', onMotion, true); }
+  function stopSensors(){
+    window.removeEventListener('devicemotion', onMotion, true);
+    window.removeEventListener('deviceorientation', onOrient, true);
+  }
 
   // ===== ボタン =====
   $('btnMain').addEventListener('click', async ()=>{
     if(!armed){
       armed=true; awaitingSettle=false; settleMs=0;
-      // ★モーション許可を"最初"に要求（awaitより前＝ユーザー操作の文脈を壊さない）
-      const ok = await startMotion();
-      // その後で音声を有効化
+      const ok = await startSensors();   // 許可要求を最初に（ジェスチャー文脈維持）
       try{ if(AC.state==='suspended') await AC.resume(); }catch(e){}
       startWind(); resetSwing();
       $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop');
-      setCenter('振りかぶって\n振り下ろす','SWING NOW');
-      if(ok) $('msg').textContent='';   // 不許可時は startMotion の診断メッセージを残す
+      setCenter('アドレスで構え\n振り下ろす','SWING NOW');
+      if(ok) $('msg').textContent='まず1〜2秒アドレスで静止（基準を取得）→振りかぶって振る';
     }else{
-      armed=false; awaitingSettle=false; stopMotion(); stopWindNode();
+      armed=false; awaitingSettle=false; stopSensors(); stopWindNode();
       $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
       setCenter('安全を確認して\nスタート','MOTION READY'); prog(0);
       $('mSpeed').textContent='--'; $('mQuality').textContent='--'; $('msg').textContent='';
