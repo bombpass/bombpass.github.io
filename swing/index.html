@@ -10,64 +10,60 @@
   :root{ --neon:#a6ff00; --bg:#0a0d0a; --card:rgba(255,255,255,.05); --amber:#ffcf5a; }
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; }
-  body{
-    background:var(--bg); color:#fff;
+  body{ background:var(--bg); color:#fff;
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     display:flex; flex-direction:column; align-items:center;
     padding:max(12px,env(safe-area-inset-top)) 20px max(16px,env(safe-area-inset-bottom));
-    overflow:hidden; user-select:none; -webkit-user-select:none;
-  }
+    overflow:hidden; user-select:none; -webkit-user-select:none; }
   .wrap{ width:100%; max-width:460px; height:100%; display:flex; flex-direction:column; }
   header{ display:flex; justify-content:space-between; align-items:flex-start; }
-  .title{ font-size:25px; font-weight:800; letter-spacing:.5px; }
-  .sub{ font-size:10px; font-weight:700; letter-spacing:3px; color:var(--neon); margin-top:2px; }
-  .safe{ font-size:12px; font-weight:600; color:rgba(255,255,255,.85);
-    background:rgba(255,255,255,.08); padding:6px 12px; border-radius:99px; }
+  .title{ font-size:24px; font-weight:800; } .sub{ font-size:10px; font-weight:700; letter-spacing:3px; color:var(--neon); margin-top:2px; }
+  .safe{ font-size:12px; font-weight:600; color:rgba(255,255,255,.85); background:rgba(255,255,255,.08); padding:6px 12px; border-radius:99px; }
   .ringwrap{ flex:1; display:flex; align-items:center; justify-content:center; min-height:150px; }
-  .ring{ position:relative; width:210px; height:210px; }
+  .ring{ position:relative; width:200px; height:200px; }
   svg{ transform:rotate(-90deg); width:100%; height:100%; }
-  .track{ fill:none; stroke:rgba(255,255,255,.06); stroke-width:16; }
-  .prog{ fill:none; stroke:var(--neon); stroke-width:16; stroke-linecap:round; transition:stroke-dashoffset .04s linear; }
-  .center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:30px; text-align:center; }
-  .emoji{ font-size:44px; transition:transform .22s cubic-bezier(.2,1.5,.4,1); }
+  .track{ fill:none; stroke:rgba(255,255,255,.06); stroke-width:15; }
+  .prog{ fill:none; stroke:var(--neon); stroke-width:15; stroke-linecap:round; transition:stroke-dashoffset .06s linear; }
+  .center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:28px; text-align:center; }
+  .emoji{ font-size:40px; transition:transform .22s cubic-bezier(.2,1.5,.4,1); }
   .ctitle{ font-size:19px; font-weight:800; white-space:pre-line; }
-  .csub{ font-size:11px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,.45); }
-
-  /* 結果パネル */
-  .result{ background:var(--card); border-radius:16px; padding:14px; margin-top:2px; }
-  .dist{ text-align:center; margin-bottom:10px; }
-  .dist .v{ font-size:40px; font-weight:800; color:var(--neon); line-height:1; }
+  .csub{ font-size:11px; font-weight:700; color:rgba(255,255,255,.45); }
+  .result{ background:var(--card); border-radius:16px; padding:13px; }
+  .dist{ text-align:center; margin-bottom:9px; }
+  .dist .v{ font-size:38px; font-weight:800; color:var(--neon); line-height:1; }
   .dist .u{ font-size:14px; font-weight:700; color:rgba(255,255,255,.6); margin-left:4px; }
   .dist .l{ font-size:10px; font-weight:600; color:rgba(255,255,255,.4); margin-top:3px; }
-  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .cell{ background:rgba(255,255,255,.04); border-radius:11px; padding:9px 11px; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .cell{ background:rgba(255,255,255,.04); border-radius:11px; padding:8px 11px; }
   .cell .l{ font-size:10px; font-weight:600; color:rgba(255,255,255,.45); }
-  .cell .v{ font-size:19px; font-weight:800; margin-top:1px; }
-  .cell .v small{ font-size:11px; font-weight:700; color:rgba(255,255,255,.55); }
-  .verdict{ text-align:center; font-size:14px; font-weight:800; margin-top:9px; color:var(--neon); min-height:17px; }
-
-  .controls{ margin-top:12px; display:flex; flex-direction:column; gap:10px; align-items:center; }
-  .primary{ width:100%; border:none; border-radius:99px; padding:16px; font-size:17px; font-weight:800; color:#000; background:var(--neon); }
+  .cell .v{ font-size:18px; font-weight:800; margin-top:1px; } .cell .v small{ font-size:11px; color:rgba(255,255,255,.55); }
+  .verdict{ text-align:center; font-size:14px; font-weight:800; margin-top:8px; color:var(--neon); min-height:17px; }
+  .controls{ margin-top:11px; display:flex; flex-direction:column; gap:9px; align-items:center; }
+  .primary{ width:100%; border:none; border-radius:99px; padding:15px; font-size:17px; font-weight:800; color:#000; background:var(--neon); }
   .primary.stop{ background:rgba(255,255,255,.85); }
-  .row{ display:flex; gap:10px; width:100%; }
-  .row button{ flex:1; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.05); color:#fff;
-    font-size:13px; font-weight:700; padding:11px; border-radius:99px; }
-  .audition{ background:none; border:1px solid rgba(166,255,0,.45); color:var(--neon); font-size:12px; font-weight:700; padding:8px 14px; border-radius:99px; }
-  .soundlabel{ font-size:12px; font-weight:800; min-height:15px; }
+  .row{ display:flex; gap:9px; width:100%; }
+  .row button{ flex:1; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.05); color:#fff; font-size:13px; font-weight:700; padding:11px; border-radius:99px; }
+  .mini{ background:none; border:none; color:rgba(255,255,255,.5); font-size:11px; font-weight:600; text-decoration:underline; }
+  .audition{ background:none; border:1px solid rgba(166,255,0,.45); color:var(--neon); font-size:12px; font-weight:700; padding:7px 14px; border-radius:99px; }
+  .soundlabel{ font-size:12px; font-weight:800; min-height:14px; }
   .msg{ font-size:12px; color:var(--amber); text-align:center; min-height:15px; }
-  .foot{ text-align:center; margin-top:8px; }
-  .foot .n{ font-size:9px; color:rgba(255,255,255,.3); }
-  .foot .p{ font-size:10px; font-weight:700; color:rgba(255,255,255,.45); margin-top:2px; }
+  .foot{ text-align:center; margin-top:6px; } .foot .n{ font-size:9px; color:rgba(255,255,255,.3); } .foot .p{ font-size:10px; font-weight:700; color:rgba(255,255,255,.45); margin-top:2px; }
   .hidden{ display:none !important; }
+  /* オンボーディング */
+  .overlay{ position:fixed; inset:0; background:rgba(6,8,6,.97); display:flex; align-items:center; justify-content:center; padding:26px; z-index:10; }
+  .ob{ width:100%; max-width:380px; text-align:center; }
+  .ob .big{ font-size:22px; font-weight:800; margin-bottom:6px; }
+  .ob .step{ font-size:11px; font-weight:700; letter-spacing:2px; color:var(--neon); margin-bottom:14px; }
+  .ob .ph{ font-size:64px; margin:10px 0; }
+  .ob .instr{ font-size:14px; line-height:1.6; color:rgba(255,255,255,.85); margin-bottom:6px; white-space:pre-line; }
+  .ob .hint{ font-size:11.5px; color:rgba(255,255,255,.5); margin-bottom:20px; min-height:15px; }
+  .ob .primary{ margin-bottom:10px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div>
-      <div class="title">NICE SWING</div>
-      <div class="sub">SWING SOUND LAB</div>
-    </div>
+    <div><div class="title">NICE SWING</div><div class="sub">SWING SOUND LAB</div></div>
     <div class="safe">🛡 安全</div>
   </header>
 
@@ -86,13 +82,13 @@
     </div>
   </div>
 
-  <div class="result" id="resultPanel">
+  <div class="result">
     <div class="dist"><span class="v" id="rDist">--</span><span class="u">yd</span><div class="l">推定飛距離（演出）</div></div>
     <div class="grid">
       <div class="cell"><div class="l">推定ヘッドスピード</div><div class="v" id="rHS">--<small> km/h</small></div></div>
-      <div class="cell"><div class="l">テンポ（目標 3.0:1）</div><div class="v" id="rTempo">--<small> :1</small></div></div>
+      <div class="cell"><div class="l">テンポ（目標3.0:1）</div><div class="v" id="rTempo">--<small> :1</small></div></div>
       <div class="cell"><div class="l">フェース</div><div class="v" id="rFace">--</div></div>
-      <div class="cell"><div class="l">推定弾道</div><div class="v" id="rShape">--</div></div>
+      <div class="cell"><div class="l">振りの大きさ</div><div class="v" id="rArc">--<small> %</small></div></div>
     </div>
     <div class="verdict" id="rVerdict"></div>
   </div>
@@ -106,268 +102,257 @@
     <button class="audition" id="btnAudition">🎵 打球音の候補を聴く（タップで次）</button>
     <div class="soundlabel" id="soundLabel"></div>
     <div class="msg" id="msg"></div>
+    <button class="mini" id="btnReReg">スイングを登録し直す</button>
   </div>
 
   <div class="foot">
-    <div class="n">飛距離・弾道は実測した速度と角度からの推定演出です。実際の結果とは異なります。</div>
+    <div class="n">飛距離・弾道は実測した速度と角度からの推定演出です。左右の曲がりは参考値。</div>
     <div class="p">Presented by 夜レジ</div>
+  </div>
+</div>
+
+<!-- オンボーディング（スイング登録） -->
+<div class="overlay hidden" id="onboard">
+  <div class="ob">
+    <div class="big" id="obBig">スイングを登録</div>
+    <div class="step" id="obStep">STEP 1 / 2</div>
+    <div class="ph" id="obPh">🧍</div>
+    <div class="instr" id="obInstr"></div>
+    <div class="hint" id="obHint"></div>
+    <button class="primary" id="obSet">この向きでセット</button>
+    <button class="mini" id="obSkip">スキップ（登録なしで使う）</button>
   </div>
 </div>
 
 <script>
 (function(){
   "use strict";
-  const $ = id => document.getElementById(id);
-  const CIRC = 2 * Math.PI * 52;
+  const $=id=>document.getElementById(id);
+  const CIRC=2*Math.PI*52;
 
-  // ===== 音（Web Audio） =====
-  const AC = new (window.AudioContext || window.webkitAudioContext)({ latencyHint:'interactive' });
-  const buffers = {};
-  const SOUNDS = {
-    whoosh:'sounds/whoosh.wav', metal:'sounds/real_metal_shot.mp3', powerful:'sounds/real_powerful_shot.mp3',
-    sharp:'sounds/real_sharp_hit.mp3', hard:'sounds/real_hard_hit.mp3', hitting:'sounds/real_hitting_ball.mp3',
-  };
-  (async function(){ await Promise.all(Object.entries(SOUNDS).map(async([k,u])=>{
-    try{ buffers[k]=await AC.decodeAudioData(await (await fetch(u)).arrayBuffer()); }catch(e){ console.warn('load',k,e); }
-  })); })();
-  let windSrc=null, windGain=null;
-  function startWind(){ if(!buffers.whoosh)return; stopWindNode();
-    windSrc=AC.createBufferSource(); windSrc.buffer=buffers.whoosh; windSrc.loop=true;
-    windGain=AC.createGain(); windGain.gain.value=0; windSrc.connect(windGain).connect(AC.destination); windSrc.start(); }
+  // ===== 音 =====
+  const AC=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+  const buffers={};
+  const SOUNDS={whoosh:'sounds/whoosh.wav',metal:'sounds/real_metal_shot.mp3',powerful:'sounds/real_powerful_shot.mp3',sharp:'sounds/real_sharp_hit.mp3',hard:'sounds/real_hard_hit.mp3',hitting:'sounds/real_hitting_ball.mp3'};
+  (async function(){ await Promise.all(Object.entries(SOUNDS).map(async([k,u])=>{ try{ buffers[k]=await AC.decodeAudioData(await (await fetch(u)).arrayBuffer()); }catch(e){console.warn(k,e);} })); })();
+  let windSrc=null,windGain=null;
+  function startWind(){ if(!buffers.whoosh)return; stopWindNode(); windSrc=AC.createBufferSource(); windSrc.buffer=buffers.whoosh; windSrc.loop=true; windGain=AC.createGain(); windGain.gain.value=0; windSrc.connect(windGain).connect(AC.destination); windSrc.start(); }
   function stopWindNode(){ try{ if(windSrc)windSrc.stop(); }catch(e){} windSrc=null; windGain=null; }
   function setWind(n){ if(!windGain)return; windGain.gain.value=Math.min(1,Math.max(0,n))*0.9; if(windSrc)windSrc.playbackRate.value=0.8+n*1.1; }
-  function playSound(name,vol,rate){ const b=buffers[name]; if(!b)return;
-    const s=AC.createBufferSource(); s.buffer=b; s.playbackRate.value=rate||1;
-    const g=AC.createGain(); g.gain.value=vol==null?1:vol; s.connect(g).connect(AC.destination); s.start(); }
+  function playSound(name,vol,rate){ const b=buffers[name]; if(!b)return; const s=AC.createBufferSource(); s.buffer=b; s.playbackRate.value=rate||1; const g=AC.createGain(); g.gain.value=vol==null?1:vol; s.connect(g).connect(AC.destination); s.start(); }
+  async function resumeAudio(){ try{ if(AC.state==='suspended') await AC.resume(); }catch(e){} }
 
   // ===== パラメータ =====
-  const P = {
-    still:0.6, windStart:3.0, maxOmega:26.0,
-    fire:11.0,        // 立ち上がりでこの角速度を超えたら発音（ピーク少し前）
-    lead:0.03,
-    minBuildMs:150, minBuildAngle:0.5,
-    radius:1.5,       // スイング半径(m)＝ヘッドスピード換算用
-    faceMaxDeg:35,
-    calibHoldMs:600,  // アドレス静止で基準確定
-  };
+  const P={ still:0.6, windStart:3.0, maxOmega:26.0, fire:11.0, lead:0.03,
+    minBuildMs:150, minBuildAngle:0.5, radius:1.5, faceMaxDeg:35, fullArc:2.6, countdownMs:1600 };
+
+  // ===== 保存（ユーザーのスイング登録） =====
+  let calib=null; // {addrBe,addrGa,handed}
+  try{ const s=localStorage.getItem('ns_calib'); if(s) calib=JSON.parse(s); }catch(e){}
+  function saveCalib(c){ calib=c; try{ localStorage.setItem('ns_calib', JSON.stringify(c)); }catch(e){} }
 
   // ===== 状態 =====
-  const ST = { STANDBY:0, CALIB:1, READY:2, SWINGING:3, FINISH:4 };
+  const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4};
   let state=ST.STANDBY, armed=false, motionSeen=false;
-  let stillMs=0, calibMs=0;
-  // 基準（アドレス）
-  let ref=null; // {al,be,ga}
+  let stillMs=0;
   let curOri={al:0,be:0,ga:0}, haveOri=false;
+  let zeroGa=0, haveZero=false; // このラウンドの基準（アドレスroll）
   // スイング計測
-  let buildMs=0, buildAngle=0, prevOmega=0;
-  let soundFired=false, peakSeen=0, finishAt=0;
-  const buf=[]; // {t,om,al,be,ga}
+  let buildMs=0, buildAngle=0, prevOmega=0, soundFired=false, peakSeen=0, finishAt=0;
+  const buf=[];
+  function resetSwing(){ buildMs=0;buildAngle=0;prevOmega=0;soundFired=false;peakSeen=0;finishAt=0;buf.length=0;setWind(0);prog(0); }
+  function angd(a,b){ let d=a-b; while(d>180)d-=360; while(d<-180)d+=360; return d; }
 
-  function resetSwing(){ buildMs=0; buildAngle=0; prevOmega=0; soundFired=false; peakSeen=0; finishAt=0; buf.length=0; setWind(0); prog(0); }
-  function ang(a,b){ let d=a-b; while(d>180)d-=360; while(d<-180)d+=360; return d; }
-
-  function ingest(wx,wy,wz, omega, dt){
+  function ingest(wx,wy,wz,omega,dt){
     if(!armed) return;
-    const now = performance.now();
-
-    // --- 基準セット（アドレスで静止） ---
-    if(state===ST.CALIB){
-      if(omega < P.still && haveOri){
-        calibMs += dt*1000;
-        prog(Math.min(1, calibMs/P.calibHoldMs));
-        if(calibMs >= P.calibHoldMs){
-          ref = { al:curOri.al, be:curOri.be, ga:curOri.ga };
-          state=ST.READY; resetSwing();
-          setCenter('振りかぶって\n振り下ろす','READY'); $('msg').textContent='基準セットOK！飛球線に構えて振ろう';
-        }
-      } else { calibMs=0; prog(0); }
-      prevOmega=omega; return;
-    }
-
-    // --- 結果後：アドレス静止に戻るまで次を受け付けない ---
+    const now=performance.now();
+    if(state===ST.CALIB){ prevOmega=omega; return; } // カウントダウン中はタイマー任せ
     if(state===ST.FINISH){
-      if(omega < P.still){ stillMs += dt*1000; if(stillMs>400){ state=ST.READY; stillMs=0; resetSwing(); setCenter('振りかぶって\n振り下ろす','READY'); $('msg').textContent=''; } }
+      if(omega<P.still){ stillMs+=dt*1000; if(stillMs>400){ state=ST.READY; stillMs=0; resetSwing(); setCenter('振りかぶって\n振り下ろす','READY'); $('msg').textContent=''; } }
       else stillMs=0;
       prevOmega=omega; return;
     }
-
     if(state!==ST.READY && state!==ST.SWINGING){ prevOmega=omega; return; }
 
-    // --- 待機（READY）：静止中は基準を微更新 ---
-    if(omega < P.still && state===ST.READY){
-      stillMs += dt*1000;
-      if(haveOri){ ref = { al:curOri.al, be:curOri.be, ga:curOri.ga }; } // アドレス追従
-      prevOmega=omega; return;
-    }
+    if(omega<P.still && state===ST.READY){ stillMs+=dt*1000; prevOmega=omega; return; }
     stillMs=0;
-
-    // --- スイング中：全サンプルを記録 ---
     if(state===ST.READY){ state=ST.SWINGING; resetSwing(); }
-    buildMs += dt*1000; buildAngle += omega*dt;
-    buf.push({ t:now, om:omega, al:curOri.al, be:curOri.be, ga:curOri.ga });
-    if(buf.length>300) buf.shift();
-    if(omega>peakSeen) peakSeen=omega;
 
-    const canImpact = (buildMs>=P.minBuildMs && buildAngle>=P.minBuildAngle);
+    buildMs+=dt*1000; buildAngle+=omega*dt;
+    buf.push({t:now,om:omega,ga:curOri.ga,al:curOri.al}); if(buf.length>300)buf.shift();
+    if(omega>peakSeen)peakSeen=omega;
+    const canImpact=(buildMs>=P.minBuildMs && buildAngle>=P.minBuildAngle);
     if(omega>P.windStart) emitWind(omega);
 
-    // 発音：立ち上がりで fire 超え（早め）。数値は後で本ピークから確定。
     if(canImpact && !soundFired && omega>=P.fire && omega>prevOmega){
       soundFired=true;
       const rate=Math.max(0,(omega-prevOmega)/Math.max(dt,0.001));
-      const peakEst=omega+rate*P.lead;
-      playImpactSound(peakEst);
+      playImpactSound(omega+rate*P.lead);
     }
-    // 発音後、本当のピークを過ぎたら（or 250ms）計測確定
     if(soundFired){
-      if(!finishAt && omega < prevOmega) finishAt = now; // ピーク通過
-      if((finishAt && now-finishAt>40) || (now - buf[0].t > 1600)){ finalizeSwing(); }
+      if(!finishAt && omega<prevOmega) finishAt=now;
+      if((finishAt && now-finishAt>40) || (buf.length && now-buf[0].t>1600)) finalizeSwing();
     }
     prevOmega=omega;
   }
-
   function emitWind(omega){ const n=Math.min(1,Math.max(0,(omega-P.windStart)/(P.maxOmega-P.windStart))); setWind(n); prog(n); }
-
-  // 発音（音の選択は暫定＝発音時の速さ。最終ラベルは finalize で更新）
   function playImpactSound(peakEst){
-    const hs = peakEst*P.radius*3.6; // km/h
-    let name = hs>120?'metal':(hs>80?'powerful':'hitting');
-    const vol=Math.min(1,Math.max(0.4, peakEst/P.maxOmega));
-    playSound(name, vol, 1.0);
-    if(navigator.vibrate) navigator.vibrate(26);
+    const arcF=Math.min(1,Math.max(0.1,buildAngle/P.fullArc));
+    const power=peakEst*(0.35+0.65*arcF);
+    const hs=power*P.radius*3.6;
+    const name=hs>120?'metal':(hs>80?'powerful':'hitting');
+    playSound(name, Math.min(1,Math.max(0.4,power/P.maxOmega)), 1.0);
+    if(navigator.vibrate)navigator.vibrate(26);
   }
 
-  // ===== スイング解析（バッファから実測値を算出） =====
+  // ===== 解析 =====
   let lastResult=null;
   function finalizeSwing(){
     state=ST.FINISH; stillMs=0; setWind(0); prog(0);
-    const r = analyze();
-    lastResult = r;
-    showResult(r);
+    lastResult=analyze(); showResult(lastResult);
     $('againRow').classList.remove('hidden');
     $('msg').textContent='👍 アドレスに戻すと自動で次へ / もう一球でもOK';
   }
-
   function analyze(){
-    // ピーク（インパクト）と、その手前の最小ω（トップ）を探す
-    let iImp=0, mx=-1; for(let i=0;i<buf.length;i++){ if(buf[i].om>mx){mx=buf[i].om; iImp=i;} }
-    let iTop=0, mn=1e9; for(let i=0;i<=iImp;i++){ if(buf[i].om<mn){mn=buf[i].om; iTop=i;} }
-    const s=buf[0], top=buf[iTop], imp=buf[iImp];
-    // テンポ（バックスイング:ダウンスイング）
-    let backMs=Math.max(1, top.t - s.t), downMs=Math.max(1, imp.t - top.t);
-    let tempo = backMs/downMs;
-    if(!isFinite(tempo)||tempo<=0) tempo=null;
-    // ヘッドスピード（角速度×半径）
-    const hsKmh = Math.round(mx * P.radius * 3.6);
-    // フェース角（基準からの左右の傾き差 gamma）
+    let iImp=0,mx=-1; for(let i=0;i<buf.length;i++){ if(buf[i].om>mx){mx=buf[i].om;iImp=i;} }
+    let iTop=0,mn=1e9; for(let i=0;i<=iImp;i++){ if(buf[i].om<mn){mn=buf[i].om;iTop=i;} }
+    const s=buf[0]||{t:0}, top=buf[iTop]||s, imp=buf[iImp]||s;
+    // 振りの大きさ（弧）＝スナップ潰しの核
+    const arc=buildAngle; const arcPct=Math.round(Math.min(1,arc/P.fullArc)*100);
+    const arcF=Math.min(1,Math.max(0.1,arc/P.fullArc));
+    // 速さ（弧で減衰＝座りスナップは低く）
+    const power=mx*(0.35+0.65*arcF);
+    const hsKmh=Math.round(power*P.radius*3.6);
+    // テンポ
+    let backMs=Math.max(1,top.t-s.t), downMs=Math.max(1,imp.t-top.t);
+    let tempo=backMs/downMs; if(!isFinite(tempo)||tempo<=0)tempo=null;
+    // フェース（このラウンドのアドレスroll基準）
     let faceDeg=null, faceTxt='—';
-    if(ref){ const dG=ang(imp.ga, ref.ga); faceDeg=dG;
-      faceTxt = Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
-    // 軌道（向きの変化 alpha を左右の振り抜き方向の代理に）
-    let pathDeg=null; if(ref){ pathDeg=ang(imp.al, ref.al); }
-    // 弾道（フェースと軌道の関係＝ボールフライトの法則）
-    let shape='—';
-    if(faceDeg!=null){
-      const rel = (pathDeg!=null) ? ang(faceDeg, pathDeg) : faceDeg;
-      const a=Math.abs(rel);
-      shape = a<4?'ストレート':(a<12?(rel>0?'フェード':'ドロー'):(rel>0?'スライス':'フック'));
-    }
-    // テンポ点（3:1が満点）
-    const tempoScore = tempo!=null ? Math.max(0,1-Math.abs(tempo-3)/2.2) : 0.4;
-    // スクエア点
-    const sqScore = faceDeg!=null ? Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg) : 0.5;
-    // 速さ点
-    const spScore = Math.min(1, Math.max(0,(mx-9)/(20-9)));
-    // ミート率（スマッシュ）＝接触の良さ
-    const q = 0.4*sqScore + 0.35*tempoScore + 0.25*spScore;
-    const smash = 1.15 + q*0.33;            // 1.15〜1.48
-    const meetPct = Math.round(smash/1.5*100);
-    // 推定飛距離（ヘッドスピード×スマッシュ→ボール速度→キャリー・演出）
-    const ballMph = (hsKmh/1.609)*smash;
-    const distYd = Math.max(0, Math.round(ballMph*1.4));
-    // 判定ラベル
-    let label = q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット'));
-    return { hsKmh, tempo, faceTxt, shape, meetPct, distYd, label, q };
+    const ref = haveZero ? zeroGa : (calib?calib.addrGa:null);
+    if(ref!=null){ const dG=angd(imp.ga,ref); faceDeg=dG;
+      faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
+    // 点数
+    const tempoScore=tempo!=null?Math.max(0,1-Math.abs(tempo-3)/2.2):0.4;
+    const sqScore=faceDeg!=null?Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg):0.5;
+    const spScore=Math.min(1,Math.max(0,(power-9)/(20-9)));
+    const q=0.35*sqScore+0.30*tempoScore+0.20*spScore+0.15*arcF;
+    const smash=1.15+q*0.33; const meetPct=Math.round(smash/1.5*100);
+    const ballMph=(hsKmh/1.609)*smash; const distYd=Math.max(0,Math.round(ballMph*1.4));
+    let label = arcPct<25 ? '手打ち（振り不足）' : (q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット')));
+    return {hsKmh,tempo,faceTxt,arcPct,meetPct,distYd,label,q};
   }
 
   // ===== UI =====
-  function prog(n){ $('prog').style.strokeDashoffset = CIRC*(1-Math.max(0.02,n)); }
+  function prog(n){ $('prog').style.strokeDashoffset=CIRC*(1-Math.max(0.02,n)); }
   function setCenter(t,s){ $('ctitle').textContent=t; $('csub').textContent=s; }
   function showResult(r){
-    $('rDist').textContent = r.distYd;
-    $('rHS').innerHTML = r.hsKmh + '<small> km/h</small>';
-    $('rTempo').innerHTML = (r.tempo!=null? r.tempo.toFixed(1) : '--') + '<small> :1</small>';
-    $('rFace').textContent = r.faceTxt;
-    $('rShape').textContent = r.shape;
-    $('rVerdict').textContent = r.label + '（ミート率 '+r.meetPct+'%）';
-    setCenter(r.label, 'NICE SWING!');
+    $('rDist').textContent=r.distYd;
+    $('rHS').innerHTML=r.hsKmh+'<small> km/h</small>';
+    $('rTempo').innerHTML=(r.tempo!=null?r.tempo.toFixed(1):'--')+'<small> :1</small>';
+    $('rFace').textContent=r.faceTxt;
+    $('rArc').innerHTML=r.arcPct+'<small> %</small>';
+    $('rVerdict').textContent=r.label+'（ミート率 '+r.meetPct+'%）';
+    setCenter(r.label,'NICE SWING!');
     const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
-  function clearResult(){
-    ['rDist','rHS','rTempo','rFace','rShape'].forEach(id=>$(id).textContent='--');
-    $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> :1</small>';
-    $('rVerdict').textContent='';
-  }
+  function clearResult(){ ['rDist','rFace'].forEach(id=>$(id).textContent='--'); $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> :1</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; }
 
   // ===== センサー =====
-  function onMotion(ev){ motionSeen=true; const r=ev.rotationRate; if(!r)return;
-    const k=Math.PI/180; const wx=(r.alpha||0)*k, wy=(r.beta||0)*k, wz=(r.gamma||0)*k;
-    const omega=Math.hypot(wx,wy,wz); const dt=(ev.interval&&ev.interval>0)?ev.interval:0.016;
-    ingest(wx,wy,wz, omega, dt); }
-  function onOrient(ev){ if(ev.alpha==null&&ev.beta==null&&ev.gamma==null)return;
-    curOri={ al:ev.alpha||0, be:ev.beta||0, ga:ev.gamma||0 }; haveOri=true; }
+  function onMotion(ev){ motionSeen=true; const r=ev.rotationRate; if(!r)return; const k=Math.PI/180;
+    const wx=(r.alpha||0)*k, wy=(r.beta||0)*k, wz=(r.gamma||0)*k; const omega=Math.hypot(wx,wy,wz);
+    const dt=(ev.interval&&ev.interval>0)?ev.interval:0.016; ingest(wx,wy,wz,omega,dt); }
+  function onOrient(ev){ if(ev.alpha==null&&ev.beta==null&&ev.gamma==null)return; curOri={al:ev.alpha||0,be:ev.beta||0,ga:ev.gamma||0}; haveOri=true; }
   async function startSensors(){
     try{
-      if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
-        let res; try{ res=await DeviceMotionEvent.requestPermission(); }
-        catch(e){ $('msg').textContent='許可ダイアログを出せませんでした。もう一度「構える」を。'; return false; }
-        if(res!=='granted'){ $('msg').textContent='モーションが不許可。設定→Safari→「モーションと画面の向きのアクセス」をオン→再読み込み。'; return false; }
+      if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){
+        let res; try{ res=await DeviceMotionEvent.requestPermission(); }catch(e){ $('msg').textContent='許可ダイアログを出せませんでした。もう一度押して。'; return false; }
+        if(res!=='granted'){ $('msg').textContent='モーション不許可。設定→Safari→「モーションと画面の向きのアクセス」をオン→再読み込み。'; return false; }
       }
-      if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
-        try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
-      }
+      if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){ try{ await DeviceOrientationEvent.requestPermission(); }catch(e){} }
       motionSeen=false; haveOri=false;
-      window.addEventListener('devicemotion', onMotion, true);
-      window.addEventListener('deviceorientation', onOrient, true);
-      setTimeout(()=>{ if(armed&&!motionSeen)$('msg').textContent='センサー値が届きません。端末を動かすか設定を確認して。'; },1300);
+      window.addEventListener('devicemotion',onMotion,true);
+      window.addEventListener('deviceorientation',onOrient,true);
+      setTimeout(()=>{ if(armed&&!motionSeen)$('msg').textContent='センサー値が届きません。設定のモーション許可を確認して。'; },1300);
       return true;
     }catch(e){ $('msg').textContent='この端末はモーション非対応です。'; return false; }
   }
   function stopSensors(){ window.removeEventListener('devicemotion',onMotion,true); window.removeEventListener('deviceorientation',onOrient,true); }
 
+  // ===== カウントダウンで基準確定 =====
+  function startCountdown(){
+    state=ST.CALIB; clearResult(); $('againRow').classList.add('hidden');
+    let left=Math.ceil(P.countdownMs/1000); const startT=performance.now();
+    setCenter('アドレスで構えて','基準セット '+left);
+    const iv=setInterval(()=>{
+      const el=performance.now()-startT; prog(Math.min(1,el/P.countdownMs));
+      const nl=Math.max(0,Math.ceil((P.countdownMs-el)/1000));
+      if(nl!==left){ left=nl; setCenter('アドレスで構えて','基準セット '+left); }
+      if(el>=P.countdownMs){
+        clearInterval(iv);
+        if(haveOri){ zeroGa=curOri.ga; haveZero=true; }
+        state=ST.READY; resetSwing(); setCenter('振りかぶって\n振り下ろす','READY'); $('msg').textContent='';
+      }
+    }, 60);
+  }
+
+  // ===== オンボーディング（スイング登録） =====
+  let obStep=0, obAddr=null;
+  function showOnboard(){
+    obStep=0; obAddr=null; $('onboard').classList.remove('hidden'); renderOb();
+  }
+  function renderOb(){
+    if(obStep===0){ $('obBig').textContent='スイングを登録'; $('obStep').textContent='STEP 1 / 2 ・ アドレス';
+      $('obPh').textContent='🧍‍♂️'; $('obInstr').textContent='いつも振る通りにスマホを握って\n「構え（アドレス）」の形で静止';
+      $('obHint').textContent='この向きがあなたの基準になります'; $('obSet').textContent='この向きでセット'; }
+    else { $('obBig').textContent='スイングを登録'; $('obStep').textContent='STEP 2 / 2 ・ トップ';
+      $('obPh').textContent='🏌️'; $('obInstr').textContent='振りかぶった「一番上（トップ）」で\n止めてセット';
+      $('obHint').textContent='利き手・振る向きを覚えます'; $('obSet').textContent='この向きでセット（登録完了）'; }
+  }
+  async function obSetTapped(){
+    await resumeAudio();
+    if(!armed){ const ok=await startSensors(); armed=true; if(!ok){ return; } // 許可が要る
+      // 許可直後はまだ向きが来てないことがある→少し待つ
+    }
+    if(!haveOri){ $('obHint').textContent='向きを取得中…そのままもう一度セットを押して'; return; }
+    if(obStep===0){ obAddr={be:curOri.be,ga:curOri.ga}; obStep=1; renderOb(); }
+    else {
+      const top={be:curOri.be,ga:curOri.ga};
+      const handed = angd(top.ga,obAddr.ga)>=0 ? 1 : -1;
+      saveCalib({addrBe:obAddr.be, addrGa:obAddr.ga, handed:handed});
+      $('onboard').classList.add('hidden');
+      // そのまま構えるへ
+      startWind(); startCountdown();
+      $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop');
+      $('msg').textContent='登録完了！アドレスで構えて基準セット→振ろう';
+    }
+  }
+
   // ===== ボタン =====
   $('btnMain').addEventListener('click', async ()=>{
     if(!armed){
-      armed=true;
-      const ok=await startSensors();
-      try{ if(AC.state==='suspended') await AC.resume(); }catch(e){}
-      startWind(); resetSwing(); clearResult(); $('againRow').classList.add('hidden');
-      state=ST.CALIB; calibMs=0; ref=null;
+      const ok=await startSensors(); await resumeAudio(); armed=true;
+      if(!ok){ return; }
+      if(!calib){ showOnboard(); return; } // 初回は登録へ
+      startWind(); clearResult(); $('againRow').classList.add('hidden');
       $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop');
-      setCenter('アドレスで\n1秒静止','基準をセット中');
-      if(ok) $('msg').textContent='スマホの上端をボール方向に向け、アドレスで静止';
+      startCountdown();
     }else{
       armed=false; state=ST.STANDBY; stopSensors(); stopWindNode();
       $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
       setCenter('安全を確認して\nスタート','MOTION READY'); prog(0); clearResult(); $('againRow').classList.add('hidden'); $('msg').textContent='';
     }
   });
-  $('btnAgain').addEventListener('click', ()=>{
-    if(!armed) return;
-    state=ST.READY; stillMs=0; resetSwing(); clearResult(); $('againRow').classList.add('hidden');
-    setCenter('振りかぶって\n振り下ろす','READY'); $('msg').textContent='';
-  });
-  $('btnShare').addEventListener('click', async ()=>{
-    if(!lastResult) return;
-    const r=lastResult;
-    const txt=`NICE SWING 🏌️\n推定飛距離 ${r.distYd}yd / ヘッドスピード ${r.hsKmh}km/h / テンポ ${r.tempo!=null?r.tempo.toFixed(1):'-'}:1 / ${r.shape}\n${r.label}（ミート率${r.meetPct}%）\nhttps://bombpass.github.io/swing/ #NICESWING #夜レジ`;
-    try{ if(navigator.share){ await navigator.share({text:txt}); } else { await navigator.clipboard.writeText(txt); $('msg').textContent='結果をコピーしました'; } }catch(e){}
-  });
+  $('btnAgain').addEventListener('click', ()=>{ if(!armed)return; startWind(); startCountdown(); });
+  $('btnShare').addEventListener('click', async ()=>{ if(!lastResult)return; const r=lastResult;
+    const txt=`NICE SWING 🏌️\n推定飛距離 ${r.distYd}yd / ヘッドスピード ${r.hsKmh}km/h / テンポ ${r.tempo!=null?r.tempo.toFixed(1):'-'}:1\n${r.label}（ミート率${r.meetPct}%）\nhttps://bombpass.github.io/swing/ #NICESWING #夜レジ`;
+    try{ if(navigator.share){ await navigator.share({text:txt}); } else { await navigator.clipboard.writeText(txt); $('msg').textContent='結果をコピーしました'; } }catch(e){} });
+  $('btnReReg').addEventListener('click', async ()=>{ await resumeAudio(); if(!armed){ const ok=await startSensors(); armed=true; if(!ok)return; } $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop'); showOnboard(); });
+  $('obSet').addEventListener('click', obSetTapped);
+  $('obSkip').addEventListener('click', ()=>{ saveCalib({addrBe:0,addrGa:0,handed:1,skipped:true}); $('onboard').classList.add('hidden'); startWind(); $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop'); startCountdown(); });
 
   const CANDS=[['① メタルショット（金属カキーン）','metal'],['② パワフルショット','powerful'],['③ シャープヒット','sharp'],['④ ハードヒット','hard'],['⑤ ヒッティング（軽め）','hitting']];
   let ci=-1;
-  $('btnAudition').addEventListener('click', async ()=>{ if(AC.state==='suspended')await AC.resume();
-    ci=(ci+1)%CANDS.length; playSound(CANDS[ci][1],1,1); $('soundLabel').textContent='🔊 再生中：'+CANDS[ci][0]; });
+  $('btnAudition').addEventListener('click', async ()=>{ await resumeAudio(); ci=(ci+1)%CANDS.length; playSound(CANDS[ci][1],1,1); $('soundLabel').textContent='🔊 再生中：'+CANDS[ci][0]; });
 })();
 </script>
 </body>
