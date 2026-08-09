@@ -54,7 +54,7 @@
     <div class="dist"><span class="v" id="rDist">--</span><span class="u">yd</span><div class="l">推定飛距離（演出）</div></div>
     <div class="grid">
       <div class="cell"><div class="l">推定ヘッドスピード</div><div class="v" id="rHS">--<small> km/h</small></div></div>
-      <div class="cell"><div class="l">手の移動距離</div><div class="v" id="rTempo">--<small> m</small></div></div>
+      <div class="cell"><div class="l">手の速さ</div><div class="v" id="rTempo">--<small> m/s</small></div></div>
       <div class="cell"><div class="l">フェース</div><div class="v" id="rFace">--</div></div>
       <div class="cell"><div class="l">振りの大きさ</div><div class="v" id="rArc">--<small> %</small></div></div>
     </div>
@@ -91,7 +91,7 @@
 
   const P={ still:0.6, windStart:3.0, maxOmega:26.0, impactMin:12.0, minBuildMs:120,
     faceMaxDeg:35, fullTilt:170, minTilt:55, hsK:6.7, distK:11,
-    fullPath:2.8, minMove:0.5, leverK:5.0, distK2:27, countdownMs:2100 }; // fullPath=実測フルスイング3.18m基準
+    damp:0.9, fullLin:7.5, minLin:3.0, leverK:5.0, distK2:22, countdownMs:2100 }; // 手速(m/s)主軸・ドリフト減衰
 
   // ===== 状態 =====
   const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4};
@@ -139,8 +139,9 @@
     const t=tiltFrom(addrG); if(t>maxTilt)maxTilt=t;
     // ★手が空間をどれだけ動いたか＝直線加速度をworldへ回して積分（アドレスv=0からスタート）
     if(haveLA){ const aw=toWorld(laX-biasX, laY-biasY, laZ-biasZ);
-      vx+=aw.x*dt; vy+=aw.y*dt; vz+=aw.z*dt;
-      const sp=Math.hypot(vx,vy,vz); if(sp>peakLin)peakLin=sp; pathLen+=sp*dt; }
+      // 減衰付き積分（leaky）＝ドリフトの暴走を抑える。速さのピークを主指標にする
+      vx=(vx+aw.x*dt)*P.damp; vy=(vy+aw.y*dt)*P.damp; vz=(vz+aw.z*dt)*P.damp;
+      const sp=Math.hypot(vx,vy,vz); if(sp>peakLin && sp<20)peakLin=sp; pathLen+=sp*dt; }
     if(omega>P.windStart) emitWind(omega);
 
     // インパクト＝速さのピーク（impactMin以上で下降に転じた瞬間）。ここで鳴らす。
@@ -170,11 +171,11 @@
     // ★手が空間をどれだけ動いたか（＝スナップ判別の核。手首だけなら手は動かない）
     const moved = pathLen;            // m（積分した移動距離）
     const linMs = peakLin;            // m/s（手の最大速さ）
-    const havePath = haveLA && (moved>0 || linMs>0);
-    const sf = havePath ? Math.min(1, moved/P.fullPath) : sizeFactor();
+    const havePath = haveLA && linMs>0;
+    // ★主軸＝手の"速さ"のピーク（距離=pathLenはドリフトで暴れるので判定に使わない）
+    const sf = havePath ? Math.min(1, linMs/P.fullLin) : sizeFactor();
     const arcPct = Math.round(sf*100);
-    const small = havePath ? (moved < P.minMove) : (maxTilt < P.minTilt); // 手がほぼ動いてない＝手打ち
-    // ★ヘッドスピードも"手速(直線)"ベースに（手首回転ωだと座りスナップと差が出ないため）
+    const small = havePath ? (linMs < P.minLin) : (maxTilt < P.minTilt); // 手が速く動いてない＝手打ち
     const hsKmh = Math.round( havePath ? Math.min(230, linMs*P.leverK*3.6) : mx*P.hsK );
     let faceDeg=null,faceTxt='—'; if(haveRef){ const dG=angd(imp.ga,addrGa); faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
     const sqScore=faceDeg!=null?Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg):0.5;
@@ -190,13 +191,13 @@
   function setCenter(t,s){ $('ctitle').textContent=t; $('csub').textContent=s; }
   function showResult(r){
     $('rDist').textContent=r.distYd; $('rHS').innerHTML=r.hsKmh+'<small> km/h</small>';
-    $('rTempo').innerHTML=r.moved+'<small> m</small>';
+    $('rTempo').innerHTML=r.linMs+'<small> m/s</small>';
     $('rFace').textContent=r.faceTxt; $('rArc').innerHTML=r.arcPct+'<small> %</small>';
     $('rVerdict').textContent=r.label+'（ミート率 '+r.meetPct+'%）';
     $('diag').textContent='調整用 → 手速 '+r.linMs+'m/s / 手の移動 '+r.moved+'m / ω'+r.peak+' / 傾き'+r.tilt+'°'+(r.havePath?'':' ※直線加速度なし');
     setCenter(r.label,'NICE SWING!'); const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
-  function clearResult(){ ['rDist','rFace'].forEach(id=>$(id).textContent='--'); $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> m</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; $('diag').textContent=''; }
+  function clearResult(){ ['rDist','rFace'].forEach(id=>$(id).textContent='--'); $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> m/s</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; $('diag').textContent=''; }
 
   // ===== センサー =====
   function onMotion(ev){ motionSeen=true;
