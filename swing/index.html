@@ -91,7 +91,7 @@
 
   const P={ still:0.6, windStart:3.0, maxOmega:26.0, impactMin:12.0, minBuildMs:120,
     faceMaxDeg:35, fullTilt:170, minTilt:55, hsK:6.7, distK:11,
-    damp:0.9, fullLin:7.5, minLin:3.0, leverK:5.0, distK2:22, countdownMs:2100 }; // 手速(m/s)主軸・ドリフト減衰
+    damp:0.9, fullLin:6.0, minLin:3.0, leverK:6.5, distK2:31, countdownMs:2100 }; // 手速(m/s)主軸・実データ較正
 
   // ===== 状態 =====
   const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4};
@@ -177,9 +177,11 @@
     const arcPct = Math.round(sf*100);
     const small = havePath ? (linMs < P.minLin) : (maxTilt < P.minTilt); // 手が速く動いてない＝手打ち
     const hsKmh = Math.round( havePath ? Math.min(230, linMs*P.leverK*3.6) : mx*P.hsK );
-    let faceDeg=null,faceTxt='—'; if(haveRef){ const dG=angd(imp.ga,addrGa); faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
+    let faceDeg=null,faceTxt='—'; if(haveRef){ const dG=angd(imp.ga,addrGa);
+      if(Math.abs(dG)<=45){ faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
+      else { faceTxt='—'; } } // 45°超は計測の暴れ＝非表示
     const sqScore=faceDeg!=null?Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg):0.5;
-    const q=0.35*sqScore+0.65*sf;
+    const q=0.2*sqScore+0.8*sf;   // フェースは弱い指標なので重み小、振りの速さ/大きさ主体
     const smash=1.15+q*0.33; const meetPct=Math.round(smash/1.5*100);
     const distYd = small ? Math.round(linMs*4*sf) : Math.round( havePath ? linMs*P.distK2*sf : Math.max(0,(mx-3))*P.distK*sf );
     let label = small ? '手打ち（手が動いてない）' : (q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット')));
