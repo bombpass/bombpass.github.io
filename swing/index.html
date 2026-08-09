@@ -273,32 +273,60 @@
   const cv=$('fx'), cx=cv.getContext('2d'); let FW=0,FH=0;
   function sizeFx(){ const d=Math.min(2,window.devicePixelRatio||1); FW=cv.clientWidth; FH=cv.clientHeight; cv.width=FW*d; cv.height=FH*d; cx.setTransform(d,0,0,d,0,0); }
   window.addEventListener('resize',sizeFx); sizeFx();
-  let parts=[], ball=null, rafOn=false;
+  let parts=[], scene=null, rafOn=false;
+  const easeOut=t=>1-Math.pow(1-t,2);
   function loop(){
     cx.clearRect(0,0,FW,FH);
+    if(scene){ scene.t+=1/(scene.dur*60); if(scene.t>=1){ scene=null; } else drawScene(scene); }
     parts=parts.filter(p=>p.life>0);
-    for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.18; p.life-=0.022; cx.globalAlpha=Math.max(0,p.life); cx.fillStyle=p.c; cx.beginPath(); cx.arc(p.x,p.y,p.r,0,7); cx.fill(); }
+    for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.18; p.life-=0.02; cx.globalAlpha=Math.max(0,p.life); cx.fillStyle=p.c; cx.beginPath(); cx.arc(p.x,p.y,p.r,0,7); cx.fill(); }
     cx.globalAlpha=1;
-    if(ball){ ball.t+=1/(ball.dur*60);
-      if(ball.t>=1){ ball=null; }
-      else { const t=ball.t, x=ball.x0+(ball.x1-ball.x0)*t, y=ball.y0-(ball.y0-ball.y1)*t-ball.h*4*t*(1-t);
-        ball.trail.push({x,y}); if(ball.trail.length>20)ball.trail.shift();
-        for(let i=0;i<ball.trail.length;i++){ const s=ball.trail[i]; cx.globalAlpha=(i/ball.trail.length)*0.5; cx.fillStyle='#fff'; cx.beginPath(); cx.arc(s.x,s.y,3.5,0,7); cx.fill(); }
-        cx.globalAlpha=1; cx.fillStyle='#fff'; cx.beginPath(); cx.arc(x,y,5.5,0,7); cx.fill(); }
-    }
-    if(parts.length||ball){ requestAnimationFrame(loop); } else { rafOn=false; }
+    if(parts.length||scene){ requestAnimationFrame(loop); } else { rafOn=false; }
   }
   function startLoop(){ if(!rafOn){ rafOn=true; requestAnimationFrame(loop); } }
   function burst(x,y,color,n,spd){ for(let i=0;i<n;i++){ const a=Math.random()*6.283,s=Math.random()*spd+1; parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1.5,r:Math.random()*2.5+1.5,life:1,c:color}); } startLoop(); }
   function screenFlash(a){ const f=$('flash'); f.style.transition='none'; f.style.opacity=a; requestAnimationFrame(()=>{ f.style.transition='opacity .45s ease-out'; f.style.opacity=0; }); }
-  function impactFx(real){ screenFlash(real?0.55:0.22); burst(FW*0.5,FH*0.36, real?'#a6ff00':'#888', real?26:10, real?8:4); }
+  function impactFx(real){ screenFlash(real?0.5:0.2); burst(FW*0.5,FH*0.28, real?'#a6ff00':'#888', real?22:10, real?8:4); }
+
+  // みんゴル風コース＋ボール飛球
+  function drawScene(s){
+    const hy=FH*0.30, gy=FH*0.54, groundY=gy-FH*0.03, teeX=FW*0.12;
+    let sky=cx.createLinearGradient(0,0,0,hy); sky.addColorStop(0,'#8fd4ff'); sky.addColorStop(1,'#e6f6ff');
+    cx.fillStyle=sky; cx.fillRect(0,0,FW,hy);
+    let gr=cx.createLinearGradient(0,hy,0,gy); gr.addColorStop(0,'#63c24e'); gr.addColorStop(1,'#3f9a37');
+    cx.fillStyle=gr; cx.fillRect(0,hy,FW,gy-hy);
+    cx.fillStyle='rgba(255,255,255,.12)'; cx.beginPath(); cx.moveTo(FW*0.08,gy); cx.lineTo(FW*0.42,hy+3); cx.lineTo(FW*0.60,hy+3); cx.lineTo(FW*0.96,gy); cx.closePath(); cx.fill();
+    // グリーン＋旗
+    const gxx=FW*0.82, gyy=hy+(gy-hy)*0.30;
+    cx.fillStyle='#2e8b57'; cx.beginPath(); cx.ellipse(gxx,gyy+5,FW*0.085,FH*0.018,0,0,7); cx.fill();
+    cx.strokeStyle='#f0f0f0'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(gxx,gyy-FH*0.06); cx.lineTo(gxx,gyy); cx.stroke();
+    cx.fillStyle='#ff4d4d'; cx.beginPath(); cx.moveTo(gxx,gyy-FH*0.06); cx.lineTo(gxx+15,gyy-FH*0.05); cx.lineTo(gxx,gyy-FH*0.037); cx.closePath(); cx.fill();
+    // ボール
+    const carry=Math.min(1,s.t/0.72);
+    const land=teeX+(s.landX-teeX)*easeOut(carry);
+    const x=land+(s.slice?s.slice*carry*carry:0);
+    const y=groundY - s.apex*Math.sin(carry*Math.PI);
+    cx.fillStyle='rgba(0,0,0,.18)'; cx.beginPath(); cx.ellipse(x,groundY,7,2.5,0,0,7); cx.fill();
+    if(carry<1){ s.trail.push({x,y}); if(s.trail.length>16)s.trail.shift(); }
+    for(let i=0;i<s.trail.length;i++){ const t2=s.trail[i]; cx.globalAlpha=(i/s.trail.length)*0.4; cx.fillStyle='#fff'; cx.beginPath(); cx.arc(t2.x,t2.y,3,0,7); cx.fill(); }
+    cx.globalAlpha=1;
+    cx.fillStyle='#fff'; cx.beginPath(); cx.arc(x,y,6,0,7); cx.fill(); cx.strokeStyle='rgba(0,0,0,.2)'; cx.lineWidth=1; cx.stroke();
+    if(!s.landed && carry>=1){ s.landed=true; for(let i=0;i<8;i++){ const a=Math.random()*Math.PI; parts.push({x,y:groundY,vx:Math.cos(a)*2,vy:-Math.sin(a)*2,r:2,life:0.8,c:'#e8dcc0'}); } }
+    cx.fillStyle='rgba(0,0,0,.8)'; cx.font='800 20px -apple-system,sans-serif'; cx.textAlign='center';
+    cx.fillText(s.flavor, FW*0.5, FH*0.115);
+  }
   function resultFx(dist,label){
-    if(label && label.indexOf('手打ち')<0){
-      const x0=FW*0.30,y0=FH*0.55, reach=Math.min(FW*0.62,FW*0.18+dist*1.4), h=Math.min(FH*0.42,FH*0.10+dist*1.0);
-      ball={t:0,dur:1.15,x0,y0,x1:Math.min(FW*0.94,x0+reach),y1:FH*0.5,h,trail:[]}; startLoop();
-    }
-    if(label==='会心の一撃'){ burst(FW*0.5,FH*0.36,'#ffd54a',34,9); const d=document.querySelector('.dist'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); }
-    else if(label==='ナイスショット'){ burst(FW*0.5,FH*0.36,'#a6ff00',18,6); }
+    const dF=Math.min(1, dist/280);
+    let apex=FH*0.18, landFrac=0.4, slice=0, flavor='ナイスショット！';
+    if(label==='会心の一撃'){ apex=FH*0.26; landFrac=0.55+dF*0.30; flavor='会心の一撃！'; }
+    else if(label==='ナイスショット'){ apex=FH*0.20; landFrac=0.45+dF*0.30; flavor='ナイスショット！'; }
+    else if(label==='こすり球'){ apex=FH*0.12; landFrac=0.40; slice=FW*0.20; flavor='スライス…'; }
+    else if(label==='ミスヒット'){ apex=FH*0.10; landFrac=0.34; flavor='ミスヒット'; }
+    else { apex=FH*0.02; landFrac=0.20; flavor='ボテボテ…'; }   // 手打ち
+    const landX=FW*(0.12+(0.80-0.12)*landFrac);
+    scene={ t:0, dur:2.0, landX, apex, slice, flavor, trail:[], landed:false };
+    startLoop();
+    if(label==='会心の一撃'){ burst(FW*0.5,FH*0.28,'#ffd54a',30,9); const d=document.querySelector('.dist'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); }
   }
   function countUp(el,to){ let cur=0; const step=Math.max(1,Math.ceil(to/22)); el.style.transform='scale(1.35)'; const iv=setInterval(()=>{ cur+=step; if(cur>=to){cur=to;clearInterval(iv);} el.textContent=cur; },22); setTimeout(()=>el.style.transform='scale(1)',210); }
 })();
