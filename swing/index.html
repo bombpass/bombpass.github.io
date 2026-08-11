@@ -109,7 +109,7 @@
     damp:0.9, fullLin:6.0, minLin:3.0, leverK:6.5, distK2:31, countdownMs:2100 }; // windStart↑=振りかぶり無音・速い振り下ろしだけ風切り / faceMaxDeg↓=向き感度up
 
   // ===== 状態 =====
-  const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4};
+  const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4,INTRO:5};
   let state=ST.STANDBY, armed=false, motionSeen=false, stillMs=0;
   let curGa=0, curG={x:0,y:0,z:-1}, haveOri=false, haveG=false;
   let curAl=0, curBe=0;                          // 向き（world変換用）
@@ -179,7 +179,8 @@
   }
 
   let lastResult=null;
-  function finalizeSwing(){ state=ST.FINISH; stillMs=0; setWind(0); prog(0); lastResult=analyze(); showResult(lastResult); $('againRow').classList.remove('hidden'); $('msg').textContent='🔁 「もう一球」で次のショットへ'; setStep(0); }
+  function finalizeSwing(){ state=ST.FINISH; stillMs=0; setWind(0); prog(0); lastResult=analyze(); showResult(lastResult); $('againRow').classList.remove('hidden'); $('msg').textContent='そのまま次を振ってOK（自動で構え直します）'; setStep(0);
+    setTimeout(()=>{ if(state===ST.FINISH && armed) armReady(); }, 1300); } // 自動復帰（基準は再利用）
   function analyze(){
     let iImp=0,mx=-1; for(let i=0;i<buf.length;i++){ if(buf[i].om>mx){mx=buf[i].om;iImp=i;} }
     const imp=buf[iImp]||{t:0,ga:0};
@@ -263,15 +264,24 @@
     },50);
   }
 
+  function enterIntro(){ state=ST.INTRO; setStep(1); $('emoji').textContent='📐';
+    setCenter('この向きを\n基準にする','スイングの"まっすぐ"の基準');
+    $('msg').textContent='いつも振る形でスマホを構えて、下のボタンを押してね';
+    $('btnMain').textContent='▶ この構えでセット開始'; $('btnMain').classList.remove('stop'); }
+  function armReady(){ state=ST.READY; resetSwing(); setStep(2); startWind();
+    $('emoji').textContent='🏌️'; setCenter('振りかぶって\n振り下ろす','振ってOK！');
+    $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop');
+    $('againRow').classList.add('hidden'); $('msg').textContent=''; }
+
   $('btnMain').addEventListener('click', async ()=>{
     if(!armed){ const ok=await startSensors(); await resumeAudio(); armed=true; if(!ok)return;
-      startWind(); clearResult(); $('againRow').classList.add('hidden');
-      $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop'); startCountdown();
-    }else{ armed=false; state=ST.STANDBY; stopSensors(); stopWindNode();
+      clearResult(); $('againRow').classList.add('hidden'); enterIntro();
+    } else if(state===ST.INTRO){ $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop'); startWind(); startCountdown();
+    } else { armed=false; state=ST.STANDBY; stopSensors(); stopWindNode();
       $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
       setCenter('安全を確認して\nスタート','MOTION READY'); prog(0); clearResult(); $('againRow').classList.add('hidden'); $('msg').textContent=''; setStep(0); }
   });
-  $('btnAgain').addEventListener('click', ()=>{ if(!armed)return; startWind(); startCountdown(); });
+  $('btnAgain').addEventListener('click', ()=>{ if(!armed)return; armReady(); });
   $('btnShare').addEventListener('click', async ()=>{ if(!lastResult)return; const r=lastResult;
     const txt=`NICE SWING 🏌️\n推定飛距離 ${r.distYd}yd / ヘッドスピード ${r.hsKmh}km/h / 振り ${r.tilt}°\n${r.label}（ミート率${r.meetPct}%）\nhttps://bombpass.github.io/swing/ #NICESWING #夜レジ`;
     try{ if(navigator.share){ await navigator.share({text:txt}); } else { await navigator.clipboard.writeText(txt); $('msg').textContent='結果をコピーしました'; } }catch(e){} });
