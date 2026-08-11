@@ -40,6 +40,11 @@
   .soundlabel{ font-size:12px; font-weight:800; min-height:14px; } .msg{ font-size:12px; color:var(--amber); text-align:center; min-height:15px; }
   .foot{ text-align:center; margin-top:6px; } .foot .n{ font-size:9px; color:rgba(255,255,255,.3); } .foot .p{ font-size:10px; font-weight:700; color:rgba(255,255,255,.45); margin-top:2px; }
   .hidden{ display:none !important; }
+  /* セットアップ・ステッパー */
+  .stepper{ display:flex; gap:8px; justify-content:center; margin:6px 0 2px; }
+  .stp{ font-size:11px; font-weight:800; color:rgba(255,255,255,.35); background:rgba(255,255,255,.05); padding:5px 13px; border-radius:99px; border:1px solid transparent; transition:.2s; }
+  .stp.on{ color:#000; background:var(--neon); }
+  .stp.done{ color:var(--neon); border-color:rgba(166,255,0,.4); background:rgba(166,255,0,.08); }
   /* インパクト演出 */
   .fx{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:6; }
   .flash{ position:fixed; inset:0; background:var(--neon); opacity:0; pointer-events:none; z-index:5; }
@@ -51,6 +56,7 @@
 <body>
 <div class="wrap">
   <header><div><div class="title">NICE SWING</div><div class="sub">SWING SOUND LAB</div></div><div class="safe">🛡 安全</div></header>
+  <div class="stepper"><div class="stp" id="stp1">① 基準をセット</div><div class="stp" id="stp2">② スイング</div></div>
   <div class="ringwrap"><div class="ring">
     <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"></circle><circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle></svg>
     <div class="center"><div class="emoji" id="emoji">🏌️</div><div class="ctitle" id="ctitle">安全を確認して
@@ -98,9 +104,9 @@
   function beep(freq,dur,vol){ try{ const o=AC.createOscillator(),g=AC.createGain(); o.type='sine'; o.frequency.value=freq; o.connect(g).connect(AC.destination); const t=AC.currentTime; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0008,t+dur); o.start(t); o.stop(t+dur); }catch(e){} }
   function chime(){ beep(880,0.13,0.28); setTimeout(()=>beep(1320,0.2,0.28),120); }
 
-  const P={ still:0.6, windStart:3.0, maxOmega:26.0, impactMin:12.0, minBuildMs:120,
-    faceMaxDeg:35, fullTilt:170, minTilt:55, hsK:6.7, distK:11,
-    damp:0.9, fullLin:6.0, minLin:3.0, leverK:6.5, distK2:31, countdownMs:2100 }; // 手速(m/s)主軸・実データ較正
+  const P={ still:0.6, windStart:8.0, maxOmega:26.0, impactMin:12.0, minBuildMs:120,
+    faceMaxDeg:26, fullTilt:170, minTilt:55, hsK:6.7, distK:11,
+    damp:0.9, fullLin:6.0, minLin:3.0, leverK:6.5, distK2:31, countdownMs:2100 }; // windStart↑=振りかぶり無音・速い振り下ろしだけ風切り / faceMaxDeg↓=向き感度up
 
   // ===== 状態 =====
   const ST={STANDBY:0,CALIB:1,READY:2,SWINGING:3,FINISH:4};
@@ -136,7 +142,7 @@
   function ingest(omega,dt){
     if(!armed) return; const now=performance.now();
     if(state===ST.CALIB){ prevOmega=omega; return; }
-    if(state===ST.FINISH){ if(omega<P.still){ stillMs+=dt*1000; if(stillMs>400){ state=ST.READY; stillMs=0; resetSwing(); setCenter('振りかぶって\n振り下ろす','READY'); $('msg').textContent=''; } } else stillMs=0; prevOmega=omega; return; }
+    if(state===ST.FINISH){ prevOmega=omega; return; } // 結果表示中。「もう一球」で明示的に次へ
     if(state!==ST.READY && state!==ST.SWINGING){ prevOmega=omega; return; }
     if(omega<P.still && state===ST.READY){ stillMs+=dt*1000; prevOmega=omega; return; }
     stillMs=0;
@@ -173,7 +179,7 @@
   }
 
   let lastResult=null;
-  function finalizeSwing(){ state=ST.FINISH; stillMs=0; setWind(0); prog(0); lastResult=analyze(); showResult(lastResult); $('againRow').classList.remove('hidden'); $('msg').textContent='👍 アドレスに戻すと自動で次へ / もう一球でもOK'; }
+  function finalizeSwing(){ state=ST.FINISH; stillMs=0; setWind(0); prog(0); lastResult=analyze(); showResult(lastResult); $('againRow').classList.remove('hidden'); $('msg').textContent='🔁 「もう一球」で次のショットへ'; setStep(0); }
   function analyze(){
     let iImp=0,mx=-1; for(let i=0;i<buf.length;i++){ if(buf[i].om>mx){mx=buf[i].om;iImp=i;} }
     const imp=buf[iImp]||{t:0,ga:0};
@@ -188,10 +194,9 @@
     const small = havePath ? (linMs < P.minLin) : (maxTilt < P.minTilt); // 手が速く動いてない＝手打ち
     const hsKmh = Math.round( havePath ? Math.min(230, linMs*P.leverK*3.6) : mx*P.hsK );
     let faceDeg=null,faceTxt='—'; if(haveRef){ const dG=angd(imp.ga,addrGa);
-      if(Math.abs(dG)<=45){ faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); }
-      else { faceTxt='—'; } } // 45°超は計測の暴れ＝非表示
+      if(Math.abs(dG)<=60){ faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); } } // 60°超は計測の暴れ＝非表示
     const sqScore=faceDeg!=null?Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg):0.5;
-    const q=0.2*sqScore+0.8*sf;   // フェースは弱い指標なので重み小、振りの速さ/大きさ主体
+    const q=0.32*sqScore+0.68*sf;   // 向きの感度up（雑だと減点）。手持ちは元々ノイジーなので数値を見て較正
     const smash=1.15+q*0.33; const meetPct=Math.round(smash/1.5*100);
     const distYd = small ? Math.round(linMs*4*sf) : Math.round( havePath ? linMs*P.distK2*sf : Math.max(0,(mx-3))*P.distK*sf );
     let label = small ? '手打ち（手が動いてない）' : (q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット')));
@@ -201,12 +206,17 @@
 
   function prog(n){ $('prog').style.strokeDashoffset=CIRC*(1-Math.max(0.02,n)); }
   function setCenter(t,s){ $('ctitle').textContent=t; $('csub').textContent=s; }
+  function setStep(n){ // 0=なし 1=基準セット中 2=スイング可
+    $('stp1').classList.toggle('on', n===1); $('stp1').classList.toggle('done', n>=2);
+    $('stp2').classList.toggle('on', n>=2);
+    if(n===0){ $('stp1').className='stp'; $('stp2').className='stp'; }
+  }
   function showResult(r){
     countUp($('rDist'), r.distYd); resultFx(r.distYd, r.label); $('rHS').innerHTML=r.hsKmh+'<small> km/h</small>';
     $('rTempo').innerHTML=r.linMs+'<small> m/s</small>';
     $('rFace').textContent=r.faceTxt; $('rArc').innerHTML=r.arcPct+'<small> %</small>';
     $('rVerdict').textContent=r.label+'（ミート率 '+r.meetPct+'%）';
-    $('diag').textContent='調整用 → 手速 '+r.linMs+'m/s / 手の移動 '+r.moved+'m / ω'+r.peak+' / 傾き'+r.tilt+'°'+(r.havePath?'':' ※直線加速度なし');
+    $('diag').textContent='調整用 → 手速 '+r.linMs+'m/s / 向き'+r.faceTxt+' / ω'+r.peak+' / 傾き'+r.tilt+'°'+(r.havePath?'':' ※直線加速度なし');
     setCenter(r.label,'NICE SWING!'); const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
   function clearResult(){ ['rDist','rFace'].forEach(id=>$(id).textContent='--'); $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> m/s</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; $('diag').textContent=''; }
@@ -235,7 +245,7 @@
 
   // アドレスで基準を確定（重力方向＋roll）＝フェースと振り角の両方に使う
   function startCountdown(){
-    state=ST.CALIB; clearResult(); $('againRow').classList.add('hidden'); $('emoji').textContent='🧍';
+    state=ST.CALIB; clearResult(); $('againRow').classList.add('hidden'); $('emoji').textContent='🧍'; setStep(1);
     const t0=performance.now(); let lastN=99;
     $('msg').textContent='⚙️ セットアップ：この向きを基準にします';
     const iv=setInterval(()=>{
@@ -247,6 +257,7 @@
         if(haveG){ addrG={x:curG.x,y:curG.y,z:curG.z}; } addrGa=curGa; haveRef=(haveG||haveOri);
         if(haveLA){ biasX=laX; biasY=laY; biasZ=laZ; }   // 静止時の残差＝バイアス
         chime(); $('emoji').textContent='✅'; setCenter('基準セット完了！','この向きが「まっすぐ」'); $('msg').textContent='';
+        setStep(2);
         setTimeout(()=>{ $('emoji').textContent='🏌️'; state=ST.READY; resetSwing(); setCenter('振りかぶって\n振り下ろす','振ってOK！'); }, 900);
       }
     },50);
@@ -258,7 +269,7 @@
       $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop'); startCountdown();
     }else{ armed=false; state=ST.STANDBY; stopSensors(); stopWindNode();
       $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
-      setCenter('安全を確認して\nスタート','MOTION READY'); prog(0); clearResult(); $('againRow').classList.add('hidden'); $('msg').textContent=''; }
+      setCenter('安全を確認して\nスタート','MOTION READY'); prog(0); clearResult(); $('againRow').classList.add('hidden'); $('msg').textContent=''; setStep(0); }
   });
   $('btnAgain').addEventListener('click', ()=>{ if(!armed)return; startWind(); startCountdown(); });
   $('btnShare').addEventListener('click', async ()=>{ if(!lastResult)return; const r=lastResult;
