@@ -40,10 +40,11 @@
   <div class="controls">
     <button class="primary" id="btnStart">🎥 カメラ開始</button>
     <div class="row">
-      <button id="btnFlip">🔄 前/背面カメラ</button>
-      <button id="btnSkel">🦴 骨格 表示/非表示</button>
+      <button id="btnFlip">🔄 前/背面</button>
+      <button id="btnSkel">🦴 骨格</button>
+      <button id="btnMosaic">😷 顔モザイク</button>
     </div>
-    <div class="note">スマホを三脚や壁に立てかけて、全身が映る位置で構えてね。<br>AIが体の動き（骨格）を検出します。※明るい場所・全身が入るほど精度up</div>
+    <div class="note">スマホを三脚や壁に立てかけて、全身が映る位置で構えてね。<br>体の動き（骨格）を検出します。顔は自動でモザイク（初期ON）。<br>※明るい場所・全身が入るほど精度up</div>
     <div class="foot">Presented by 夜レジ ／ 体の動き解析（第一歩・βテスト中）</div>
   </div>
 
@@ -54,7 +55,8 @@
   "use strict";
   const $=id=>document.getElementById(id);
   const video=$('video'), cv=$('overlay'), cx=cv.getContext('2d');
-  let stream=null, detector=null, running=false, facing='user', showSkel=true, mirror=true;
+  let stream=null, detector=null, running=false, facing='user', showSkel=true, mirror=true, faceMosaic=true;
+  const mos=document.createElement('canvas'); const mctx=mos.getContext('2d'); // 顔モザイク用オフスクリーン
 
   const EDGES=[[5,7],[7,9],[6,8],[8,10],[5,6],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16],[0,5],[0,6]];
 
@@ -92,23 +94,47 @@
   function draw(poses){
     const rw=cv.clientWidth, rh=cv.clientHeight;
     cx.clearRect(0,0,rw,rh);
-    if(!showSkel || !poses || !poses.length){ return; }
+    if(!poses || !poses.length){ return; }
     const vw=video.videoWidth||1, vh=video.videoHeight||1;
-    // object-fit:cover のスケール
-    const scale=Math.max(rw/vw, rh/vh); const dw=vw*scale, dh=vh*scale; const ox=(rw-dw)/2, oy=(rh-dh)/2;
+    const scale=Math.max(rw/vw, rh/vh); const ox=(rw-vw*scale)/2, oy=(rh-vh*scale)/2;
     const map=p=>{ let x=p.x*scale+ox; if(mirror) x=rw-x; const y=p.y*scale+oy; return [x,y]; };
     const kp=poses[0].keypoints;
-    // 骨
-    cx.lineWidth=4; cx.strokeStyle='rgba(166,255,0,.9)';
-    for(const [a,b] of EDGES){ const pa=kp[a],pb=kp[b]; if(pa&&pb&&pa.score>0.3&&pb.score>0.3){ const [ax,ay]=map(pa),[bx,by]=map(pb); cx.beginPath(); cx.moveTo(ax,ay); cx.lineTo(bx,by); cx.stroke(); } }
-    // 関節
-    cx.fillStyle='#fff';
-    for(const p of kp){ if(p.score>0.3){ const [x,y]=map(p); cx.beginPath(); cx.arc(x,y,5,0,7); cx.fill(); } }
+    // 顔モザイク（骨格ON/OFFに関係なく常に効かせる＝プライバシー優先）
+    if(faceMosaic) drawFaceMosaic(kp, scale, ox, oy, rw, rh);
+    if(showSkel){
+      cx.lineWidth=4; cx.strokeStyle='rgba(166,255,0,.9)';
+      for(const [a,b] of EDGES){ const pa=kp[a],pb=kp[b]; if(pa&&pb&&pa.score>0.3&&pb.score>0.3){ const [ax,ay]=map(pa),[bx,by]=map(pb); cx.beginPath(); cx.moveTo(ax,ay); cx.lineTo(bx,by); cx.stroke(); } }
+      cx.fillStyle='#fff';
+      for(const p of kp){ if(p.score>0.3){ const [x,y]=map(p); cx.beginPath(); cx.arc(x,y,5,0,7); cx.fill(); } }
+    }
+  }
+  // 顔の点(鼻/目/耳)から頭の領域を推定し、そこをピクセル化して隠す
+  function drawFaceMosaic(kp, scale, ox, oy, rw, rh){
+    const nose=kp[0], le=kp[1], re=kp[2], lear=kp[3], rear=kp[4];
+    const pts=[nose,le,re,lear,rear].filter(p=>p&&p.score>0.25);
+    if(pts.length<2) return;
+    let cxv=0,cyv=0; pts.forEach(p=>{cxv+=p.x;cyv+=p.y;}); cxv/=pts.length; cyv/=pts.length;
+    let r=45;
+    if(lear&&rear&&lear.score>0.25&&rear.score>0.25) r=Math.hypot(lear.x-rear.x,lear.y-rear.y)*0.95;
+    else if(le&&re&&le.score>0.25&&re.score>0.25) r=Math.hypot(le.x-re.x,le.y-re.y)*2.4;
+    r=Math.max(28,r);
+    const sx=cxv-r, sy=cyv-r*1.25, sw=2*r, sh=2*r*1.4; // 頭全体を少し上まで覆う
+    const N=8; mos.width=N; mos.height=N; mctx.imageSmoothingEnabled=true;
+    try{ mctx.drawImage(video, sx,sy,sw,sh, 0,0,N,N); }catch(e){ return; }
+    let dcx=cxv*scale+ox; if(mirror) dcx=rw-dcx;
+    const dcy=(cyv-r*0.15)*scale+oy, dw=sw*scale, dh=sh*scale;
+    cx.save();
+    cx.beginPath(); cx.ellipse(dcx,dcy,dw*0.5,dh*0.5,0,0,7); cx.clip();
+    cx.imageSmoothingEnabled=false;
+    cx.drawImage(mos, 0,0,N,N, dcx-dw/2, dcy-dh/2, dw, dh);
+    cx.imageSmoothingEnabled=true;
+    cx.restore();
   }
 
   $('btnStart').addEventListener('click', startCamera);
   $('btnFlip').addEventListener('click', async ()=>{ facing = (facing==='user')?'environment':'user'; if(stream) await startCamera(); });
   $('btnSkel').addEventListener('click', ()=>{ showSkel=!showSkel; });
+  $('btnMosaic').addEventListener('click', ()=>{ faceMosaic=!faceMosaic; $('msg').textContent = faceMosaic?'顔モザイク：ON':'顔モザイク：OFF'; setTimeout(()=>{ if(running)$('msg').textContent='検出中！全身が映るように立ってね'; },1200); });
 })();
 </script>
 </body>
