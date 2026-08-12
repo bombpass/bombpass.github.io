@@ -119,9 +119,10 @@
   let addrGa=0, addrG=null, haveRef=false;
   // 計測
   let buildMs=0, prevOmega=0, peakSeen=0, maxTilt=0, soundFired=false, finishAt=0, startT=0;
+  let dotSum=0, dotCount=0, pux=0, puy=0, puz=0, havePrevU=false; // 回転軸の一貫性（雑さ検出）
   let vx=0, vy=0, vz=0, peakLin=0, pathLen=0;   // world速度・手の最大速さ(m/s)・移動距離(m)
   const buf=[]; // {t,om,ga}
-  function resetSwing(){ buildMs=0;prevOmega=0;peakSeen=0;maxTilt=0;soundFired=false;finishAt=0;startT=0;vx=0;vy=0;vz=0;peakLin=0;pathLen=0;buf.length=0;setWind(0);prog(0); }
+  function resetSwing(){ buildMs=0;prevOmega=0;peakSeen=0;maxTilt=0;soundFired=false;finishAt=0;startT=0;vx=0;vy=0;vz=0;peakLin=0;pathLen=0;dotSum=0;dotCount=0;havePrevU=false;buf.length=0;setWind(0);prog(0); }
   // 端末座標の加速度→world座標へ（DeviceOrientationのalpha/beta/gammaで回転）
   function toWorld(ax,ay,az){
     const z=curAl*Math.PI/180, x=curBe*Math.PI/180, y=curGa*Math.PI/180;
@@ -139,7 +140,7 @@
     return Math.acos(d)*180/Math.PI;
   }
 
-  function ingest(omega,dt){
+  function ingest(wx,wy,wz,omega,dt){
     if(!armed) return; const now=performance.now();
     if(state===ST.CALIB){ prevOmega=omega; return; }
     if(state===ST.FINISH){ prevOmega=omega; return; } // 結果表示中。「もう一球」で明示的に次へ
@@ -152,6 +153,9 @@
     buf.push({t:now,om:omega,ga:curGa}); if(buf.length>300)buf.shift();
     if(omega>peakSeen)peakSeen=omega;
     const t=tiltFrom(addrG); if(t>maxTilt)maxTilt=t;
+    // 回転軸の一貫性（速い局面のみ）＝素直な振りは軸が揃う・雑だとブレる
+    if(omega>6){ const m=Math.hypot(wx,wy,wz)||1; const ux=wx/m,uy=wy/m,uz=wz/m;
+      if(havePrevU){ dotSum+=ux*pux+uy*puy+uz*puz; dotCount++; } pux=ux;puy=uy;puz=uz;havePrevU=true; }
     // ★手が空間をどれだけ動いたか＝直線加速度をworldへ回して積分（アドレスv=0からスタート）
     if(haveLA){ const aw=toWorld(laX-biasX, laY-biasY, laZ-biasZ);
       // 減衰付き積分（leaky）＝ドリフトの暴走を抑える。速さのピークを主指標にする
@@ -197,12 +201,14 @@
     let faceDeg=null,faceTxt='—'; if(haveRef){ const dG=angd(imp.ga,addrGa);
       if(Math.abs(dG)<=60){ faceDeg=dG; faceTxt=Math.abs(dG)<6?'スクエア':(dG>0?('開き'+Math.round(Math.abs(dG))+'°'):('被り'+Math.round(Math.abs(dG))+'°')); } } // 60°超は計測の暴れ＝非表示
     const sqScore=faceDeg!=null?Math.max(0,1-Math.abs(faceDeg)/P.faceMaxDeg):0.5;
-    const q=0.32*sqScore+0.68*sf;   // 向きの感度up（雑だと減点）。手持ちは元々ノイジーなので数値を見て較正
+    const cleanAvg = dotCount>0 ? dotSum/dotCount : 1;               // -1..1（1=回転軸が揃う=素直な振り）
+    const cleanScore = Math.min(1, Math.max(0, (cleanAvg-0.6)/0.4)); // 0.6→0点, 1.0→満点
+    const q=0.20*sqScore + 0.18*cleanScore + 0.62*sf;   // 向き(フェース)＋軸の素直さ＋振りの速さ/大きさ
     const smash=1.15+q*0.33; const meetPct=Math.round(smash/1.5*100);
     const distYd = small ? Math.round(linMs*4*sf) : Math.round( havePath ? linMs*P.distK2*sf : Math.max(0,(mx-3))*P.distK*sf );
-    let label = small ? '手打ち（手が動いてない）' : (q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':(sqScore<0.4?'こすり球':'ミスヒット')));
+    let label = small ? '手打ち（手が動いてない）' : (q>=0.7?'会心の一撃':(q>=0.45?'ナイスショット':((sqScore<0.4||cleanScore<0.3)?'こすり球':'ミスヒット')));
     return {hsKmh,faceTxt,arcPct,meetPct,distYd,label,q,peak:mx.toFixed(1),tilt:Math.round(maxTilt),durMs,
-            moved:moved.toFixed(2),linMs:linMs.toFixed(1),havePath};
+            moved:moved.toFixed(2),linMs:linMs.toFixed(1),havePath,clean:cleanAvg.toFixed(2),cleanScore:Math.round(cleanScore*100)};
   }
 
   function prog(n){ $('prog').style.strokeDashoffset=CIRC*(1-Math.max(0.02,n)); }
@@ -217,7 +223,7 @@
     $('rTempo').innerHTML=r.linMs+'<small> m/s</small>';
     $('rFace').textContent=r.faceTxt; $('rArc').innerHTML=r.arcPct+'<small> %</small>';
     $('rVerdict').textContent=r.label+'（ミート率 '+r.meetPct+'%）';
-    $('diag').textContent='調整用 → 手速 '+r.linMs+'m/s / 向き'+r.faceTxt+' / ω'+r.peak+' / 傾き'+r.tilt+'°'+(r.havePath?'':' ※直線加速度なし');
+    $('diag').textContent='調整用 → 手速 '+r.linMs+'m/s / 向き'+r.faceTxt+' / 軸'+r.clean+'('+r.cleanScore+'%) / ω'+r.peak;
     setCenter(r.label,'NICE SWING!'); const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
   function clearResult(){ ['rDist','rFace'].forEach(id=>$(id).textContent='--'); $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> m/s</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; $('diag').textContent=''; }
@@ -227,8 +233,9 @@
     const g=ev.accelerationIncludingGravity; if(g&&(g.x!=null)){ curG={x:g.x,y:g.y,z:g.z}; haveG=true; }
     const la=ev.acceleration; if(la&&(la.x!=null)){ laX=la.x; laY=la.y; laZ=la.z; haveLA=true; }
     const r=ev.rotationRate; if(!r)return; const k=Math.PI/180;
-    const omega=Math.hypot((r.alpha||0)*k,(r.beta||0)*k,(r.gamma||0)*k);
-    const dt=(ev.interval&&ev.interval>0)?ev.interval:0.016; ingest(omega,dt); }
+    const wx=(r.alpha||0)*k, wy=(r.beta||0)*k, wz=(r.gamma||0)*k;
+    const omega=Math.hypot(wx,wy,wz);
+    const dt=(ev.interval&&ev.interval>0)?ev.interval:0.016; ingest(wx,wy,wz,omega,dt); }
   function onOrient(ev){ if(ev.alpha==null&&ev.gamma==null&&ev.beta==null)return; curAl=ev.alpha||0; curBe=ev.beta||0; curGa=ev.gamma||0; haveOri=true; }
   async function startSensors(){
     try{
