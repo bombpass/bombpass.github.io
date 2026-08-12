@@ -40,10 +40,11 @@
   <div class="controls">
     <button class="primary" id="btnStart">🎥 カメラ開始</button>
     <div class="row">
-      <button id="btnFlip">🔄 前/背面カメラ</button>
-      <button id="btnSkel">🦴 骨格 表示/非表示</button>
+      <button id="btnChar">🕺 キャラ表示</button>
+      <button id="btnSkel">🦴 骨格</button>
+      <button id="btnFlip">🔄 前/背面</button>
     </div>
-    <div class="note">スマホを三脚や壁に立てかけて、全身が映る位置で構えてね。<br>AIが体の動き（骨格）を検出します。※明るい場所・全身が入るほど精度up</div>
+    <div class="note">スマホを三脚や壁に立てかけて、全身が映る位置で構えてね。<br>「キャラ表示」であなたを真似るゴルファーに（顔は映りません）。<br>※明るい場所・全身が入るほど精度up</div>
     <div class="foot">Presented by 夜レジ ／ 体の動き解析（第一歩・βテスト中）</div>
   </div>
 
@@ -54,7 +55,7 @@
   "use strict";
   const $=id=>document.getElementById(id);
   const video=$('video'), cv=$('overlay'), cx=cv.getContext('2d');
-  let stream=null, detector=null, running=false, facing='user', showSkel=true, mirror=true;
+  let stream=null, detector=null, running=false, facing='user', showSkel=true, mirror=true, charMode=false;
 
   const EDGES=[[5,7],[7,9],[6,8],[8,10],[5,6],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16],[0,5],[0,6]];
 
@@ -92,23 +93,58 @@
   function draw(poses){
     const rw=cv.clientWidth, rh=cv.clientHeight;
     cx.clearRect(0,0,rw,rh);
-    if(!showSkel || !poses || !poses.length){ return; }
+    const kp=(poses && poses.length)? poses[0].keypoints : null;
+    if(charMode){ drawCharacter(kp, rw, rh); return; }  // キャラ表示（顔なし・映える）
+    if(!showSkel || !kp){ return; }
     const vw=video.videoWidth||1, vh=video.videoHeight||1;
-    // object-fit:cover のスケール
-    const scale=Math.max(rw/vw, rh/vh); const dw=vw*scale, dh=vh*scale; const ox=(rw-dw)/2, oy=(rh-dh)/2;
+    const scale=Math.max(rw/vw, rh/vh); const ox=(rw-vw*scale)/2, oy=(rh-vh*scale)/2;
     const map=p=>{ let x=p.x*scale+ox; if(mirror) x=rw-x; const y=p.y*scale+oy; return [x,y]; };
-    const kp=poses[0].keypoints;
-    // 骨
     cx.lineWidth=4; cx.strokeStyle='rgba(166,255,0,.9)';
     for(const [a,b] of EDGES){ const pa=kp[a],pb=kp[b]; if(pa&&pb&&pa.score>0.3&&pb.score>0.3){ const [ax,ay]=map(pa),[bx,by]=map(pb); cx.beginPath(); cx.moveTo(ax,ay); cx.lineTo(bx,by); cx.stroke(); } }
-    // 関節
     cx.fillStyle='#fff';
     for(const p of kp){ if(p.score>0.3){ const [x,y]=map(p); cx.beginPath(); cx.arc(x,y,5,0,7); cx.fill(); } }
+  }
+
+  // ===== シンクロキャラ：骨格からネオンのゴルファーを描く（あなたを真似る・顔なし） =====
+  function drawCharacter(kp, rw, rh){
+    // 背景（顔を隠す＝映える素材に）
+    let g=cx.createLinearGradient(0,0,0,rh); g.addColorStop(0,'#0e2116'); g.addColorStop(1,'#0a0d0a');
+    cx.fillStyle=g; cx.fillRect(0,0,rw,rh);
+    cx.fillStyle='rgba(166,255,0,.06)'; cx.fillRect(0,rh*0.82,rw,rh*0.18);
+    cx.strokeStyle='rgba(166,255,0,.22)'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(0,rh*0.82); cx.lineTo(rw,rh*0.82); cx.stroke();
+    if(!kp){ cx.fillStyle='rgba(255,255,255,.5)'; cx.font='14px sans-serif'; cx.textAlign='center'; cx.fillText('カメラの前に立ってね', rw/2, rh/2); return; }
+    const v=kp.filter(p=>p.score>0.3);
+    if(v.length<5){ cx.fillStyle='rgba(255,255,255,.5)'; cx.font='14px sans-serif'; cx.textAlign='center'; cx.fillText('全身が映るように立ってね', rw/2, rh*0.5); return; }
+    let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9; v.forEach(p=>{minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);});
+    const figH=Math.max(1,maxY-minY), cxc=(minX+maxX)/2, sc=(rh*0.68)/figH, baseY=rh*0.80;
+    const mapC=p=>{ let x=(p.x-cxc)*sc; if(mirror)x=-x; return [rw/2+x, baseY-(maxY-p.y)*sc]; };
+    const K=i=>kp[i], NEON='#a6ff00';
+    const limb=(a,b,w,c)=>{ if(!a||!b||a.score<0.3||b.score<0.3)return; const [ax,ay]=mapC(a),[bx,by]=mapC(b); cx.strokeStyle=c; cx.lineWidth=w; cx.lineCap='round'; cx.beginPath(); cx.moveTo(ax,ay); cx.lineTo(bx,by); cx.stroke(); };
+    // 脚
+    limb(K(11),K(13),15,'#eaeaea'); limb(K(13),K(15),15,'#eaeaea'); limb(K(12),K(14),15,'#eaeaea'); limb(K(14),K(16),15,'#eaeaea');
+    // 胴（塗り）
+    const s5=K(5),s6=K(6),h11=K(11),h12=K(12);
+    if(s5.score>0.3&&s6.score>0.3&&h11.score>0.3&&h12.score>0.3){ const a=mapC(s5),b=mapC(s6),c=mapC(h12),d=mapC(h11); cx.fillStyle=NEON; cx.beginPath(); cx.moveTo(a[0],a[1]); cx.lineTo(b[0],b[1]); cx.lineTo(c[0],c[1]); cx.lineTo(d[0],d[1]); cx.closePath(); cx.fill(); }
+    // 腕
+    limb(K(5),K(7),12,NEON); limb(K(7),K(9),12,NEON); limb(K(6),K(8),12,NEON); limb(K(8),K(10),12,NEON);
+    // 頭＋キャップ
+    const nose=K(0),lear=K(3),rear=K(4);
+    if(nose.score>0.3){ const [hx,hy]=mapC(nose); let hr=20; if(lear.score>0.3&&rear.score>0.3){ const la=mapC(lear),ra=mapC(rear); hr=Math.max(16,Math.hypot(la[0]-ra[0],la[1]-ra[1])*0.95); }
+      cx.fillStyle='#ffe0b3'; cx.beginPath(); cx.arc(hx,hy-hr*0.2,hr,0,7); cx.fill();
+      cx.fillStyle=NEON; cx.beginPath(); cx.arc(hx,hy-hr*0.2,hr*1.02,Math.PI*1.05,Math.PI*2-0.05); cx.fill(); }
+    // クラブ（手→前腕の延長に伸ばす）
+    const w9=K(9),w10=K(10),e7=K(7),e8=K(8);
+    const hand=(w9.score>0.3&&w10.score>0.3)?{x:(w9.x+w10.x)/2,y:(w9.y+w10.y)/2,score:1}:(w9.score>0.3?w9:w10);
+    const elb=(e7.score>0.3&&e8.score>0.3)?{x:(e7.x+e8.x)/2,y:(e7.y+e8.y)/2,score:1}:(e7.score>0.3?e7:e8);
+    if(hand&&elb&&hand.score>0.3&&elb.score>0.3){ const [hx,hy]=mapC(hand),[ex,ey]=mapC(elb); let dx=hx-ex,dy=hy-ey; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; const clen=rh*0.26, tx=hx+dx*clen, ty=hy+dy*clen; cx.strokeStyle='#e6e6e6'; cx.lineWidth=5; cx.lineCap='round'; cx.beginPath(); cx.moveTo(hx,hy); cx.lineTo(tx,ty); cx.stroke(); cx.fillStyle='#cfcfcf'; cx.beginPath(); cx.arc(tx,ty,8,0,7); cx.fill(); }
+    // ラベル
+    cx.fillStyle='rgba(255,255,255,.85)'; cx.font='800 15px -apple-system,sans-serif'; cx.textAlign='center'; cx.fillText('YOUR SWING', rw/2, rh*0.09);
   }
 
   $('btnStart').addEventListener('click', startCamera);
   $('btnFlip').addEventListener('click', async ()=>{ facing = (facing==='user')?'environment':'user'; if(stream) await startCamera(); });
   $('btnSkel').addEventListener('click', ()=>{ showSkel=!showSkel; });
+  $('btnChar').addEventListener('click', ()=>{ charMode=!charMode; video.style.visibility=charMode?'hidden':'visible'; $('btnChar').textContent=charMode?'🎥 カメラに戻す':'🕺 キャラ表示'; });
 })();
 </script>
 </body>
