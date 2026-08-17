@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>NICE SWING — 端末能力チェック</title>
+<style>
+  :root{ --neon:#a6ff00; --bg:#0a0d0a; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body{ background:var(--bg); color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",sans-serif; padding:20px; line-height:1.5; }
+  h1{ font-size:20px; margin-bottom:4px; } .sub{ font-size:11px; color:var(--neon); letter-spacing:2px; margin-bottom:16px; }
+  .card{ background:rgba(255,255,255,.05); border-radius:14px; padding:14px 16px; margin-bottom:10px; }
+  .row{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:14px; }
+  .row:last-child{ border-bottom:none; }
+  .k{ color:rgba(255,255,255,.8); } .v{ font-weight:800; }
+  .ok{ color:var(--neon); } .ng{ color:#ff6b6b; } .wait{ color:#ffcf5a; }
+  .note{ font-size:12px; color:rgba(255,255,255,.55); margin-top:10px; }
+  button{ width:100%; border:none; border-radius:99px; padding:14px; font-size:15px; font-weight:800; color:#000; background:var(--neon); margin-top:10px; }
+  .big{ font-size:16px; font-weight:800; text-align:center; padding:12px; border-radius:12px; margin-bottom:12px; }
+  a{ color:var(--neon); }
+  #log{ font-size:11px; color:rgba(255,255,255,.5); white-space:pre-wrap; margin-top:12px; }
+</style>
+</head>
+<body>
+  <h1>端末能力チェック</h1>
+  <div class="sub">NICE SWING / CAPABILITY PROBE</div>
+
+  <div class="big" id="verdict">チェック中…</div>
+
+  <div class="card">
+    <div class="row"><span class="k">WebXR（navigator.xr）</span><span class="v" id="c_xr">…</span></div>
+    <div class="row"><span class="k">ARモード（immersive-ar）</span><span class="v" id="c_ar">…</span></div>
+    <div class="row"><span class="k">モーション許可API</span><span class="v" id="c_motion">…</span></div>
+    <div class="row"><span class="k">直線加速度(acceleration)</span><span class="v" id="c_accel">…</span></div>
+    <div class="row"><span class="k">向き(DeviceOrientation)</span><span class="v" id="c_orient">…</span></div>
+    <div class="row"><span class="k">端末</span><span class="v" id="c_ua" style="font-size:11px">…</span></div>
+  </div>
+
+  <button id="btnMotion">モーション/向きの実値を確認</button>
+  <div id="log"></div>
+  <div class="note">この結果を籏崎さんに教えてください。<br>「ARモード：対応」なら、Webのまま ARKit級の正確な位置・向き（＝本物の軌道/フェース）が狙えます。</div>
+  <div class="note" style="margin-top:14px"><a href="./">← 体感モードへ戻る</a></div>
+
+<script>
+(function(){
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const set=(id,txt,cls)=>{ const e=$(id); e.textContent=txt; e.className='v '+(cls||''); };
+
+  $('c_ua').textContent = (navigator.userAgent||'').slice(0,60);
+
+  // モーション/向き
+  set('c_motion', (typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function') ? '要許可(iOS)' : (typeof DeviceMotionEvent!=='undefined'?'あり':'なし'),
+      (typeof DeviceMotionEvent!=='undefined')?'ok':'ng');
+  set('c_orient', (typeof DeviceOrientationEvent!=='undefined')?'あり':'なし', (typeof DeviceOrientationEvent!=='undefined')?'ok':'ng');
+
+  // WebXR
+  if(navigator.xr){
+    set('c_xr','あり','ok');
+    if(navigator.xr.isSessionSupported){
+      navigator.xr.isSessionSupported('immersive-ar').then(function(ok){
+        set('c_ar', ok?'対応 🎉':'非対応', ok?'ok':'ng');
+        $('verdict').textContent = ok ? '✅ ARモード対応！本物の空間トラッキングが狙える' : '△ ARは非対応（IMUベースで工夫）';
+        $('verdict').style.background = ok?'rgba(166,255,0,.12)':'rgba(255,207,90,.12)';
+      }).catch(function(e){ set('c_ar','判定エラー','ng'); $('verdict').textContent='△ AR判定できず'; $('log').textContent+='\nAR check error: '+e; });
+    } else { set('c_ar','isSessionSupported無し','ng'); }
+  } else {
+    set('c_xr','なし','ng'); set('c_ar','—','ng');
+    $('verdict').textContent='△ WebXR未対応（このSafariでは）';
+    $('verdict').style.background='rgba(255,207,90,.12)';
+  }
+
+  // 実値チェック（許可後）
+  $('btnMotion').addEventListener('click', async ()=>{
+    try{
+      if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
+        const r=await DeviceMotionEvent.requestPermission(); if(r!=='granted'){ $('log').textContent='モーション不許可'; return; }
+      }
+      if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){ try{ await DeviceOrientationEvent.requestPermission(); }catch(e){} }
+      let n=0;
+      const onM=(ev)=>{ const a=ev.acceleration; set('c_accel', (a&&a.x!=null)?'あり ✓':'null(取得不可)', (a&&a.x!=null)?'ok':'ng');
+        if(n<3){ $('log').textContent='加速度: '+(a?JSON.stringify({x:+(a.x||0).toFixed(2),y:+(a.y||0).toFixed(2),z:+(a.z||0).toFixed(2)}):'null'); n++; } };
+      window.addEventListener('devicemotion', onM, {once:false});
+      $('log').textContent='計測開始。端末を少し動かしてね…';
+    }catch(e){ $('log').textContent='エラー: '+e; }
+  });
+})();
+</script>
+</body>
+</html>
