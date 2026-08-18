@@ -175,9 +175,9 @@
   function sizeFactor(){ return Math.min(1, Math.max(0.05, maxTilt/P.fullTilt)); }
   function playImpactSound(peak){
     const weak = haveLA ? (peakLin < P.minLin) : (maxTilt < P.minTilt);
-    if(weak){ playSound('hitting', 0.5, 0.9); if(navigator.vibrate)navigator.vibrate(15); impactFx(false); return; } // 手が動いてない＝鈍い弱音
+    if(weak){ playSound('hitting', 0.7, 0.9); if(navigator.vibrate)navigator.vibrate(15); impactFx(false); return; } // 手が動いてない＝鈍い弱音
     const hs = peakLin*P.leverK*3.6;
-    playSound(hs>120?'metal':(hs>70?'powerful':'hitting'), Math.min(1,Math.max(0.45,peakLin/8)), 1.0);
+    playSound(hs>120?'metal':(hs>70?'powerful':'hitting'), Math.min(1,Math.max(0.85,peakLin/6)), 1.0);
     if(navigator.vibrate)navigator.vibrate(28);
     impactFx(true);
   }
