@@ -96,7 +96,7 @@
   const buffers={}; const SOUNDS={whoosh:'sounds/whoosh.wav',metal:'sounds/real_metal_shot.mp3',powerful:'sounds/real_powerful_shot.mp3',sharp:'sounds/real_sharp_hit.mp3',hard:'sounds/real_hard_hit.mp3',hitting:'sounds/real_hitting_ball.mp3'};
   (async function(){ await Promise.all(Object.entries(SOUNDS).map(async([k,u])=>{ try{ buffers[k]=await AC.decodeAudioData(await (await fetch(u)).arrayBuffer()); }catch(e){console.warn(k,e);} })); })();
   let windSrc=null,windGain=null;
-  function startWind(){ if(!buffers.whoosh)return; stopWindNode(); windSrc=AC.createBufferSource(); windSrc.buffer=buffers.whoosh; windSrc.loop=true; windGain=AC.createGain(); windGain.gain.value=0; windSrc.connect(windGain).connect(AC.destination); windSrc.start(); }
+  function startWind(){ stopWindNode(); /* 風切りループは合成ノイズでハム/雑音の原因→一旦停止。カキーンが主役 */ }
   function stopWindNode(){ try{ if(windSrc)windSrc.stop(); }catch(e){} windSrc=null; windGain=null; }
   function setWind(n){ if(!windGain)return; windGain.gain.value=Math.min(1,Math.max(0,n))*0.9; if(windSrc)windSrc.playbackRate.value=0.8+n*1.1; }
   function playSound(name,vol,rate){ const b=buffers[name]; if(!b)return; const s=AC.createBufferSource(); s.buffer=b; s.playbackRate.value=rate||1; const g=AC.createGain(); g.gain.value=vol==null?1:vol; s.connect(g).connect(AC.destination); s.start(); }
