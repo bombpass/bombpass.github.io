@@ -81,7 +81,7 @@
     <div class="soundlabel" id="soundLabel"></div>
     <div class="msg" id="msg"></div>
   </div>
-  <div class="foot"><div class="n">飛距離は実測した速さ・振りの大きさからの推定演出。左右の曲がりは非対応（手持ちの限界）。</div><div class="p">Presented by 夜レジ</div></div>
+  <div class="foot"><div class="n">飛距離は実測した速さ・振りの大きさからの推定演出。左右の曲がりは非対応（手持ちの限界）。</div><div class="p">Presented by 夜レジ ・ ver.3（音更新・風切りOFF）</div></div>
 </div>
 <div id="flash" class="flash"></div>
 <canvas id="fx" class="fx"></canvas>
@@ -93,7 +93,8 @@
 
   // ===== 音 =====
   const AC=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
-  const buffers={}; const SOUNDS={whoosh:'sounds/whoosh.wav',metal:'sounds/real_metal_shot.mp3',powerful:'sounds/real_powerful_shot.mp3',sharp:'sounds/real_sharp_hit.mp3',hard:'sounds/real_hard_hit.mp3',hitting:'sounds/real_hitting_ball.mp3'};
+  const V='?v=3';  // キャッシュ強制更新用（音源を差し替えたら上げる）
+  const buffers={}; const SOUNDS={whoosh:'sounds/whoosh.wav'+V,metal:'sounds/real_metal_shot.mp3'+V,powerful:'sounds/real_powerful_shot.mp3'+V,sharp:'sounds/real_sharp_hit.mp3'+V,hard:'sounds/real_hard_hit.mp3'+V,hitting:'sounds/real_hitting_ball.mp3'+V};
   (async function(){ await Promise.all(Object.entries(SOUNDS).map(async([k,u])=>{ try{ buffers[k]=await AC.decodeAudioData(await (await fetch(u)).arrayBuffer()); }catch(e){console.warn(k,e);} })); })();
   let windSrc=null,windGain=null;
   function startWind(){ stopWindNode(); /* 風切りループは合成ノイズでハム/雑音の原因→一旦停止。カキーンが主役 */ }
