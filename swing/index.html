@@ -17,6 +17,7 @@
   header{ display:flex; justify-content:space-between; align-items:flex-start; }
   .title{ font-size:24px; font-weight:800; } .sub{ font-size:10px; font-weight:700; letter-spacing:3px; color:var(--neon); margin-top:2px; }
   .safe{ font-size:12px; font-weight:600; color:rgba(255,255,255,.85); background:rgba(255,255,255,.08); padding:6px 12px; border-radius:99px; }
+  .vbadge{ font-size:10px; font-weight:800; color:#000; background:var(--neon); padding:2px 9px; border-radius:99px; margin-top:5px; display:inline-block; }
   .ringwrap{ flex:1; display:flex; align-items:center; justify-content:center; min-height:150px; }
   .ring{ position:relative; width:200px; height:200px; }
   svg{ transform:rotate(-90deg); width:100%; height:100%; }
@@ -55,7 +56,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header><div><div class="title">NICE SWING</div><div class="sub">SWING SOUND LAB</div></div><div class="safe">🛡 安全</div></header>
+  <header><div><div class="title">NICE SWING</div><div class="sub">SWING SOUND LAB</div></div><div style="text-align:right"><div class="safe">🛡 安全</div><div class="vbadge">ver.4</div></div></header>
   <div class="stepper"><div class="stp" id="stp1">① 基準をセット</div><div class="stp" id="stp2">② スイング</div></div>
   <div class="ringwrap"><div class="ring">
     <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"></circle><circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle></svg>
@@ -81,7 +82,7 @@
     <div class="soundlabel" id="soundLabel"></div>
     <div class="msg" id="msg"></div>
   </div>
-  <div class="foot"><div class="n">飛距離は実測した速さ・振りの大きさからの推定演出。左右の曲がりは非対応（手持ちの限界）。</div><div class="p">Presented by 夜レジ ・ ver.3（音更新・風切りOFF）</div></div>
+  <div class="foot"><div class="n">飛距離は実測した速さ・振りの大きさからの推定演出。左右の曲がりは非対応（手持ちの限界）。</div><div class="p">Presented by 夜レジ ・ ver.4（録画対応テスト）</div></div>
 </div>
 <div id="flash" class="flash"></div>
 <canvas id="fx" class="fx"></canvas>
@@ -96,6 +97,10 @@
   const V='?v=3';  // キャッシュ強制更新用（音源を差し替えたら上げる）
   const buffers={}; const SOUNDS={whoosh:'sounds/whoosh.wav'+V,metal:'sounds/real_metal_shot.mp3'+V,powerful:'sounds/real_powerful_shot.mp3'+V,sharp:'sounds/real_sharp_hit.mp3'+V,hard:'sounds/real_hard_hit.mp3'+V,hitting:'sounds/real_hitting_ball.mp3'+V};
   (async function(){ await Promise.all(Object.entries(SOUNDS).map(async([k,u])=>{ try{ buffers[k]=await AC.decodeAudioData(await (await fetch(u)).arrayBuffer()); }catch(e){console.warn(k,e);} })); })();
+  // 画面録画にiOSが音を拾うかは「どの音声セッションで鳴らしているか」に依存する。
+  // 無音の<audio>をループ再生してセッションを"再生中"に固定する（遅延・音質には影響しない）。
+  const elSilence=new Audio('sounds/silence.wav?v=1'); elSilence.preload='auto'; elSilence.playsInline=true; elSilence.loop=true;
+  function primeAudioSession(){ try{ if(elSilence.paused) elSilence.play().catch(()=>{}); }catch(e){} }
   let windSrc=null,windGain=null;
   function startWind(){ stopWindNode(); /* 風切りループは合成ノイズでハム/雑音の原因→一旦停止。カキーンが主役 */ }
   function stopWindNode(){ try{ if(windSrc)windSrc.stop(); }catch(e){} windSrc=null; windGain=null; }
@@ -282,6 +287,7 @@
     $('againRow').classList.add('hidden'); $('msg').textContent=''; }
 
   $('btnMain').addEventListener('click', async ()=>{
+    primeAudioSession();   // 同期呼び出し（awaitを挿まない＝ジェスチャー文脈を壊さない）
     if(!armed){ const ok=await startSensors(); await resumeAudio(); armed=true; if(!ok)return;
       clearResult(); $('againRow').classList.add('hidden'); enterIntro();
     } else if(state===ST.INTRO){ $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop'); startWind(); startCountdown();
