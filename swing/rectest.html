@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>録画に音が乗るか テスト</title>
+<style>
+  :root{ --neon:#a6ff00; --bg:#0a0d0a; --amber:#ffcf5a; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body{ background:var(--bg); color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",sans-serif;
+    padding:max(12px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom)); -webkit-user-select:none; user-select:none; }
+  .wrap{ max-width:460px; margin:0 auto; }
+  h1{ font-size:20px; font-weight:800; }
+  .ver{ display:inline-block; font-size:11px; font-weight:800; color:#000; background:var(--neon); padding:3px 10px; border-radius:99px; margin-top:6px; }
+  ol{ margin:14px 0 6px 20px; font-size:13px; line-height:1.85; color:rgba(255,255,255,.9); }
+  ol b{ color:var(--amber); }
+  .note{ font-size:12px; line-height:1.7; color:rgba(255,255,255,.6); background:rgba(255,255,255,.05); padding:10px 12px; border-radius:10px; margin:10px 0 16px; }
+  button.t{ display:block; width:100%; margin:10px 0; padding:18px 16px; border:0; border-radius:14px; font-size:17px; font-weight:800;
+    background:rgba(255,255,255,.09); color:#fff; text-align:left; border:1px solid rgba(255,255,255,.14); }
+  button.t .k{ display:inline-block; width:34px; height:34px; line-height:34px; text-align:center; border-radius:9px; background:var(--neon); color:#000; margin-right:12px; font-size:19px; }
+  button.t .d{ display:block; margin-top:8px; font-size:12px; font-weight:600; color:rgba(255,255,255,.6); }
+  button.t:active{ background:rgba(166,255,0,.2); }
+  #unlock{ width:100%; padding:20px; border:0; border-radius:14px; background:var(--neon); color:#000; font-size:18px; font-weight:800; }
+  #big{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:50; }
+  #big span{ font-size:44vw; font-weight:900; color:var(--neon); text-shadow:0 0 60px rgba(166,255,0,.8); }
+  #log{ margin-top:18px; font-size:12px; line-height:1.7; color:rgba(255,255,255,.55); white-space:pre-wrap; word-break:break-all; }
+  a{ color:var(--neon); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 録画に音が乗るか テスト</h1>
+  <div class="ver">rectest ver.1</div>
+
+  <ol>
+    <li>マナーモード（サイレントスイッチ）は<b>解除</b>・音量を上げる</li>
+    <li>下の <b>「音を準備する」</b> を1回タップ</li>
+    <li>コントロールセンターから <b>画面録画を開始</b></li>
+    <li><b>A → B → C → D</b> を順に1回ずつタップ（各タップで大きい文字が出ます）</li>
+    <li>録画を停止 → 写真アプリで再生</li>
+    <li><b>音が入っていた文字だけ</b>を教えてください（例：「BとDだけ鳴ってた」）</li>
+  </ol>
+
+  <div class="note">A〜Dは<b>同じカキーン音</b>を、4通りの違う出し方で鳴らします。どれが録画に乗るかで原因を確定させます。スピーカーからはA〜D全部鳴るはずです（鳴らないものがあればそれも教えてください）。</div>
+
+  <button id="unlock">🔓 音を準備する（最初に1回タップ）</button>
+
+  <div id="btns" style="display:none">
+    <button class="t" data-k="A"><span class="k">A</span>Web Audio（今の本番と同じ）<span class="d">AudioContext → スピーカー直</span></button>
+    <button class="t" data-k="B"><span class="k">B</span>&lt;audio&gt;要素で再生<span class="d">HTMLの音声要素。動画/音楽と同じ扱い</span></button>
+    <button class="t" data-k="C"><span class="k">C</span>Web Audio →&lt;audio&gt;に流す<span class="d">MediaStream経由のハイブリッド</span></button>
+    <button class="t" data-k="D"><span class="k">D</span>無音ループ＋Web Audio<span class="d">音声セッションを"再生中"に固定してから鳴らす</span></button>
+  </div>
+
+  <div id="log">準備待ち…</div>
+  <p style="margin-top:20px"><a href="./">← 本番（体感モード）へ戻る</a></p>
+</div>
+<div id="big"><span id="bigk"></span></div>
+
+<script>
+(function(){
+  "use strict";
+  var SRC='sounds/real_metal_shot.mp3?v=3';
+  var SILENCE='sounds/silence.wav?v=1';
+  var log=document.getElementById('log');
+  var lines=[];
+  function say(s){ lines.push(s); if(lines.length>12)lines.shift(); log.textContent=lines.join('\n'); }
+
+  var AC=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+  var buf=null;
+
+  // B: 素の<audio>要素
+  var elB=new Audio(SRC); elB.preload='auto'; elB.playsInline=true;
+  // C: Web Audio の出力を MediaStream 経由で<audio>へ
+  var msd=null, elC=new Audio(); elC.playsInline=true; elC.autoplay=true;
+  // D: 無音ループで音声セッションを"再生中"に保つ
+  var elS=new Audio(SILENCE); elS.preload='auto'; elS.playsInline=true; elS.loop=true; elS.volume=1;
+
+  function playBuffer(dest){
+    if(!buf){ say('✗ 音源がまだ読めていません'); return; }
+    var s=AC.createBufferSource(); s.buffer=buf;
+    var g=AC.createGain(); g.gain.value=1;
+    s.connect(g).connect(dest||AC.destination); s.start();
+  }
+
+  function flash(k){
+    var big=document.getElementById('big');
+    document.getElementById('bigk').textContent=k;
+    big.style.display='flex';
+    setTimeout(function(){ big.style.display='none'; },1200);
+  }
+
+  document.getElementById('unlock').addEventListener('click', async function(){
+    try{ if(AC.state==='suspended') await AC.resume(); }catch(e){}
+    // <audio>要素はユーザー操作の中で一度 play() しておかないとiOSで鳴らない
+    try{ await elB.play(); elB.pause(); elB.currentTime=0; }catch(e){ say('B解錠エラー: '+e.name); }
+    try{ msd=AC.createMediaStreamDestination(); elC.srcObject=msd.stream; await elC.play(); }catch(e){ say('C解錠エラー: '+e.name); }
+    try{ await elS.play(); }catch(e){ say('D無音ループ開始エラー: '+e.name); }
+    // 音源読み込み（Web Audio用のバッファ）
+    try{
+      var ab=await (await fetch(SRC)).arrayBuffer();
+      buf=await AC.decodeAudioData(ab);
+      say('✓ 準備OK（AudioContext: '+AC.state+' / 無音ループ: '+(elS.paused?'停止中':'再生中')+'）');
+      say('→ 画面録画を開始して A→B→C→D を押してください');
+    }catch(e){ say('✗ 音源の読み込み失敗: '+e.name+' '+e.message); }
+    document.getElementById('unlock').style.display='none';
+    document.getElementById('btns').style.display='block';
+  });
+
+  document.getElementById('btns').addEventListener('click', function(ev){
+    var b=ev.target.closest('button.t'); if(!b)return;
+    var k=b.getAttribute('data-k');
+    flash(k);
+    if(k==='A'){ playBuffer(null); say('A 再生: Web Audio直'); }
+    if(k==='B'){ try{ elB.currentTime=0; elB.play(); }catch(e){} say('B 再生: <audio>要素'); }
+    if(k==='C'){ if(!msd){ say('C: MediaStream未対応'); return; } if(elC.paused){ elC.play().catch(function(){}); } playBuffer(msd); say('C 再生: WebAudio→MediaStream→<audio>'); }
+    if(k==='D'){ if(elS.paused){ elS.play().catch(function(){}); } playBuffer(null); say('D 再生: 無音ループ('+(elS.paused?'停止':'再生中')+')＋Web Audio'); }
+  });
+})();
+</script>
+</body>
+</html>
