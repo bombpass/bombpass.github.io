@@ -4,82 +4,57 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>NICE SWING — ボールラボ（β）</title>
+<title>NICE SWING — 左右のブレ</title>
 <style>
-  :root{ --neon:#a6ff00; --bg:#0a0d0a; --amber:#ffcf5a; --pink:#ff5a8a; }
+  :root{ --neon:#a6ff00; --bg:#0a0d0a; --amber:#ffcf5a; }
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; }
   body{ background:var(--bg); color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     display:flex; flex-direction:column; align-items:center; overflow:hidden; user-select:none; -webkit-user-select:none; }
   header{ width:100%; max-width:520px; display:flex; justify-content:space-between; align-items:center; padding:10px 16px; }
-  .title{ font-size:17px; font-weight:800; } .title small{ font-size:10px; font-weight:700; letter-spacing:2px; color:var(--neon); margin-left:6px; }
-  .back{ font-size:12px; font-weight:700; color:rgba(255,255,255,.65); text-decoration:none; }
-  .vbadge{ font-size:10px; font-weight:800; color:#000; background:var(--neon); padding:2px 8px; border-radius:99px; }
-  .stage{ position:relative; width:100%; max-width:520px; flex:1; background:#000; overflow:hidden; min-height:200px; }
+  .title{ font-size:17px; font-weight:800; }
+  .back{ font-size:12px; font-weight:700; color:rgba(255,255,255,.6); text-decoration:none; }
+  .stage{ position:relative; width:100%; max-width:520px; flex:1; background:#000; overflow:hidden; min-height:220px; }
   video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  canvas#overlay{ position:absolute; inset:0; width:100%; height:100%; }
-  .msg{ position:absolute; left:0; right:0; bottom:10px; text-align:center; font-size:12.5px; font-weight:700; color:#fff; text-shadow:0 1px 4px #000; padding:0 14px; line-height:1.5; }
-  .hud{ position:absolute; top:8px; left:8px; font-size:10.5px; font-weight:700; color:var(--neon); text-shadow:0 1px 3px #000; line-height:1.6; }
-  .controls{ width:100%; max-width:520px; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:8px; }
-  .primary{ width:100%; border:none; border-radius:99px; padding:14px; font-size:15px; font-weight:800; color:#000; background:var(--neon); }
-  .primary:disabled{ opacity:.35; }
-  .row{ display:flex; gap:8px; }
-  .row button{ flex:1; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.06); color:#fff; font-size:12px; font-weight:700; padding:10px 6px; border-radius:99px; }
-  .row button.on{ background:var(--neon); color:#000; border-color:var(--neon); }
-  .note{ font-size:10.5px; color:rgba(255,255,255,.5); text-align:center; line-height:1.55; }
-  .sens{ display:flex; align-items:center; gap:8px; font-size:10.5px; color:rgba(255,255,255,.55); font-weight:700; }
-  .sens input{ flex:1; }
-  .result{ display:none; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:14px; padding:12px 14px; }
-  .result h2{ font-size:12px; color:var(--neon); letter-spacing:1px; margin-bottom:8px; }
-  .kv{ display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px dashed rgba(255,255,255,.1); }
-  .kv:last-child{ border-bottom:0; }
-  .kv .k{ font-size:12px; color:rgba(255,255,255,.7); font-weight:700; }
-  .kv .v{ font-size:19px; font-weight:900; color:var(--amber); }
-  .kv .v small{ font-size:11px; font-weight:700; color:rgba(255,255,255,.6); margin-left:3px; }
-  .scrub{ display:none; gap:8px; align-items:center; }
-  .scrub input{ flex:1; }
-  .scrub span{ font-size:11px; font-weight:800; color:var(--neon); min-width:74px; text-align:right; }
-  .foot{ font-size:9.5px; font-weight:700; color:rgba(255,255,255,.35); text-align:center; padding-bottom:6px; line-height:1.5; }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; }
+  .msg{ position:absolute; left:14px; right:14px; bottom:14px; text-align:center; font-size:16px; font-weight:800;
+        color:#fff; text-shadow:0 2px 8px #000,0 0 20px #000; line-height:1.5; }
+  .msg b{ color:var(--neon); }
+  .result{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
+           background:rgba(0,0,0,.55); backdrop-filter:blur(2px); }
+  .result .big{ font-size:19vw; font-weight:900; color:var(--amber); line-height:1; text-shadow:0 0 40px rgba(255,207,90,.45); }
+  .result .big small{ font-size:7vw; margin-left:4px; }
+  .result .lead{ font-size:15px; font-weight:800; color:#fff; margin-bottom:6px; }
+  .result .sub{ font-size:12px; font-weight:700; color:rgba(255,255,255,.55); margin-top:12px; }
+  .controls{ width:100%; max-width:520px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; }
+  .primary{ width:100%; border:none; border-radius:99px; padding:17px; font-size:17px; font-weight:800; color:#000; background:var(--neon); }
+  .ghost{ background:none; border:none; color:rgba(255,255,255,.45); font-size:12px; font-weight:700; padding:2px; }
+  .setup{ font-size:12.5px; color:rgba(255,255,255,.75); text-align:center; line-height:1.7; font-weight:700; }
+  .foot{ font-size:9.5px; font-weight:700; color:rgba(255,255,255,.3); text-align:center; }
 </style>
 </head>
 <body>
   <header>
-    <div class="title">ボールラボ<small>BETA</small></div>
-    <div style="display:flex;gap:10px;align-items:center">
-      <span class="vbadge" id="vbadge">lab ver.1</span>
-      <a class="back" href="./">← 体感モード</a>
-    </div>
+    <div class="title">左右のブレ</div>
+    <a class="back" href="./">← 体感モード</a>
   </header>
 
   <div class="stage">
     <video id="video" playsinline muted autoplay></video>
     <canvas id="overlay"></canvas>
-    <div class="hud" id="hud"></div>
-    <div class="msg" id="msg">「カメラ開始」を押してね</div>
+    <div class="msg" id="msg"></div>
+    <div class="result" id="result">
+      <div class="lead" id="rLead"></div>
+      <div class="big" id="rBig"></div>
+      <div class="sub" id="rSub"></div>
+    </div>
   </div>
 
   <div class="controls">
-    <div class="row">
-      <button id="vSide" class="on">📐 よこ置き</button>
-      <button id="vBehind">🎯 うしろ置き</button>
-    </div>
-    <button class="primary" id="btnStart">🎥 カメラ開始</button>
-    <button class="primary" id="btnArm" disabled>▶️ 計測スタート</button>
-    <div class="row">
-      <button id="btnBall">⚪️ ボールを登録</button>
-      <button id="btnClub">🟡 クラブのシール</button>
-      <button id="btnFlip">🔄 前/背面</button>
-    </div>
-    <div class="sens"><span>感度</span><input type="range" id="sens" min="24" max="150" value="62"><span id="sensv">62</span></div>
-    <div class="scrub" id="scrub"><input type="range" id="frame" min="0" max="0" value="0"><span id="frameLabel">—</span></div>
-
-    <div class="result" id="result">
-      <h2 id="rTitle">計測けっか</h2>
-      <div id="rBody"></div>
-    </div>
-
-    <div class="note" id="howto">スマホを立てかけて、ボールが画面に大きく写る位置に（1mくらい）。<br>ボールを画面でタップ＝登録 → 「計測スタート」 → 打つ。</div>
-    <div class="foot">Presented by 夜レジ ／ ボールの直径42.67mmを物差しにした実測モード</div>
+    <div class="setup" id="setup">スマホを、<b style="color:var(--neon)">ボールが飛んでいく方向</b>に向けて立てかける。<br>ボールが大きく写るくらい近くに置いてね（1mくらい）</div>
+    <button class="primary" id="btn">🎥 はじめる</button>
+    <button class="ghost" id="reset" style="display:none">やりなおす</button>
+    <div class="foot">ゴルフボールの直径42.67mmを物差しにした実測です</div>
   </div>
 
 <script>
@@ -88,325 +63,173 @@
   var $=function(id){ return document.getElementById(id); };
   var video=$('video'), cv=$('overlay'), cx=cv.getContext('2d');
 
-  // ===== 定数 =====
-  var BALL_MM=42.67;          // ゴルフボール直径（規格）＝唯一の物差し
-  var AW=640, AH=360;         // 解析解像度
-  var RING=56;                // 保持フレーム数（コマ送り用）
-  var POST=22;                // インパクト後に記録するコマ数
-  var BASE_FRAMES=12;         // 静止基準をとるコマ数
-  var MOVE_TRIG=1.15;         // 静止位置からボール半径の何倍動いたらインパクト
-  var MIN_PIX=14;             // 検出に必要な最小ピクセル数
-  var SEARCH_K=5.0;           // 探索窓＝半径の何倍
-  var THUMB_W=320, THUMB_H=180;
+  var BALL_MM=42.67, AW=640, AH=360;
+  var POST=20, BASE_N=10, MOVE_TRIG=1.2, MIN_PIX=12, SEARCH_K=5.0;
 
-  // ===== 状態 =====
-  var stream=null, facing='environment', running=false;
-  var view='side';                       // 'side' | 'behind'
-  var pickMode=null;                     // 'ball' | 'club'
-  var refBall=null, refClub=null;        // {r,g,b}
-  var thr=62;
-  var mmPerPx=null;                      // ボール登録時に確定
-  var phase='idle';                      // idle | armed | burst | done
-  var baseline=null;                     // {x,y,r}
-  var baseBuf=[];
-  var postCount=0;
-  var fps=0, fpsBuf=[];
-  var ring=[], ringPos=[], ringIdx=0, ringLen=0, impactRingPos=-1;
+  var stream=null, running=false, phase='idle';
+  var ref=null, thr=60, baseline=null, baseBuf=[], track=[], postCount=0, lost=0, last=null;
+  var fps=0, fpsBuf=[], lastT=0;
 
   var acv=document.createElement('canvas'); acv.width=AW; acv.height=AH;
   var actx=acv.getContext('2d',{willReadFrequently:true});
-  for(var i=0;i<RING;i++){
-    var c=document.createElement('canvas'); c.width=THUMB_W; c.height=THUMB_H;
-    ring.push({cv:c, ctx:c.getContext('2d')}); ringPos.push(null);
-  }
 
-  function sizeCanvas(){
-    var r=cv.getBoundingClientRect(); var d=Math.min(2,window.devicePixelRatio||1);
-    cv.width=r.width*d; cv.height=r.height*d; cx.setTransform(d,0,0,d,0,0);
-  }
+  function sizeCanvas(){ var r=cv.getBoundingClientRect(); var d=Math.min(2,window.devicePixelRatio||1);
+    cv.width=r.width*d; cv.height=r.height*d; cx.setTransform(d,0,0,d,0,0); }
   window.addEventListener('resize', sizeCanvas);
   function say(s){ $('msg').innerHTML=s; }
 
-  // ===== カメラ起動（高fpsから順に交渉） =====
-  var CANDIDATES=[
-    { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:240} },
-    { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:120} },
-    { width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} },
-    { width:{ideal:1280}, height:{ideal:720} }
+  var CAND=[
+    { width:{ideal:1280},height:{ideal:720},frameRate:{ideal:240} },
+    { width:{ideal:1280},height:{ideal:720},frameRate:{ideal:120} },
+    { width:{ideal:1280},height:{ideal:720},frameRate:{ideal:60} },
+    { width:{ideal:1280},height:{ideal:720} }
   ];
-  async function startCamera(){
+  async function start(){
     try{
-      say('カメラを起動中…（許可を押してね）');
-      if(stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; }
-      var err=null, got=false;
-      for(var i=0;i<CANDIDATES.length && !got;i++){
-        var v={}; for(var k in CANDIDATES[i]) v[k]=CANDIDATES[i][k];
-        v.facingMode={ ideal: facing };
-        try{ stream=await navigator.mediaDevices.getUserMedia({ video:v, audio:false }); got=true; }
-        catch(e){ err=e; }
+      say('カメラを起動中…');
+      var got=false, err=null;
+      for(var i=0;i<CAND.length && !got;i++){
+        var v={}; for(var k in CAND[i]) v[k]=CAND[i][k];
+        v.facingMode={ ideal:'environment' };
+        try{ stream=await navigator.mediaDevices.getUserMedia({video:v,audio:false}); got=true; }catch(e){ err=e; }
       }
       if(!got) throw (err||new Error('no camera'));
-      video.srcObject=stream;
-      video.style.transform=(facing==='user')?'scaleX(-1)':'none';
-      await video.play();
-      sizeCanvas();
-      $('btnArm').disabled=false;
-      say('ボールを画面で<b>タップ</b>して登録してね');
-      running=true; pump();
-    }catch(e){
-      say('カメラを開始できませんでした：'+(e&&e.name?e.name:e)+'<br>（設定→Safari→カメラ の許可を確認）');
-    }
+      video.srcObject=stream; await video.play(); sizeCanvas();
+      running=true; phase='pick';
+      $('btn').style.display='none'; $('setup').style.display='none'; $('reset').style.display='block';
+      say('ボールを<b>タップ</b>してね 👆');
+      pump();
+    }catch(e){ say('カメラを開始できませんでした<br>（設定→Safari→カメラ の許可を確認）'); }
   }
 
-  function trackInfo(){
-    if(!stream) return '';
-    var t=stream.getVideoTracks()[0]; if(!t||!t.getSettings) return '';
-    var s=t.getSettings();
-    return (s.width||'?')+'×'+(s.height||'?')+' 申告'+(s.frameRate?Math.round(s.frameRate):'?')+'fps';
-  }
+  function pump(){ if(!running) return;
+    if(video.requestVideoFrameCallback) video.requestVideoFrameCallback(onFrame);
+    else requestAnimationFrame(function(t){ onFrame(t); }); }
 
-  // ===== フレーム駆動 =====
-  function pump(){
-    if(!running) return;
-    if(video.requestVideoFrameCallback){ video.requestVideoFrameCallback(onFrame); }
-    else { requestAnimationFrame(function(t){ onFrame(t,null); }); }
-  }
-  var lastT=0;
   function onFrame(now){
     if(lastT){ var dt=now-lastT; if(dt>0&&dt<200){ fpsBuf.push(1000/dt); if(fpsBuf.length>40)fpsBuf.shift();
       var s=0; for(var i=0;i<fpsBuf.length;i++)s+=fpsBuf[i]; fps=s/fpsBuf.length; } }
     lastT=now;
-
     actx.drawImage(video,0,0,AW,AH);
     var img=actx.getImageData(0,0,AW,AH).data;
 
-    var pb=refBall?detect(img, refBall, lastBall||baseline||{x:AW/2,y:AH/2,r:12}):null;
-    if(pb) lastBall=pb;
-    var pc=refClub?detect(img, refClub, lastClub||{x:AW/2,y:AH/2,r:14}):null;
-    if(pc) lastClub=pc;
+    var p=null;
+    if(ref){
+      p=detect(img, ref, last||baseline||{x:AW/2,y:AH/2,r:14});
+      if(p){ last=p; lost=0; }
+      else { lost++; if(lost>18 && thr<150){ thr+=8; lost=0; } }
+    }
 
-    // 記録
-    var slot=ring[ringIdx];
-    slot.ctx.drawImage(acv,0,0,THUMB_W,THUMB_H);
-    ringPos[ringIdx]={ t:now, ball:pb?{x:pb.x,y:pb.y,r:pb.r}:null, club:pc?{x:pc.x,y:pc.y,r:pc.r}:null };
-    var myIdx=ringIdx;
-    ringIdx=(ringIdx+1)%RING; if(ringLen<RING) ringLen++;
+    if(phase==='base') doBase(p);
+    else if(phase==='ready') doReady(p, now);
+    else if(phase==='burst'){ if(p) track.push({x:p.x,y:p.y,r:p.r,t:now}); postCount++; if(postCount>=POST) finish(); }
 
-    if(phase==='armed') watchImpact(pb, myIdx);
-    else if(phase==='burst'){ postCount++; if(postCount>=POST){ phase='done'; analyze(); } }
-
-    draw(pb,pc);
+    draw(p);
     pump();
   }
-  var lastBall=null, lastClub=null;
 
-  // ===== 検出（登録色に近い塊の重心） =====
-  function detect(img, ref, guess){
-    var win=Math.max(26, guess.r*SEARCH_K);
-    var x0=Math.max(0,Math.round(guess.x-win)), x1=Math.min(AW,Math.round(guess.x+win));
-    var y0=Math.max(0,Math.round(guess.y-win)), y1=Math.min(AH,Math.round(guess.y+win));
-    var t2=thr*thr, n=0, sx=0, sy=0;
-    for(var y=y0;y<y1;y++){
-      var row=y*AW;
-      for(var x=x0;x<x1;x++){
-        var i=(row+x)<<2;
-        var dr=img[i]-ref.r, dg=img[i+1]-ref.g, db=img[i+2]-ref.b;
-        if(dr*dr+dg*dg+db*db < t2*3){ n++; sx+=x; sy+=y; }
-      }
-    }
+  function detect(img, rf, guess){
+    var win=Math.max(28, guess.r*SEARCH_K);
+    var x0=Math.max(0,(guess.x-win)|0), x1=Math.min(AW,(guess.x+win)|0);
+    var y0=Math.max(0,(guess.y-win)|0), y1=Math.min(AH,(guess.y+win)|0);
+    var t2=thr*thr*3, n=0, sx=0, sy=0;
+    for(var y=y0;y<y1;y++){ var row=y*AW;
+      for(var x=x0;x<x1;x++){ var i=(row+x)<<2;
+        var dr=img[i]-rf.r, dg=img[i+1]-rf.g, db=img[i+2]-rf.b;
+        if(dr*dr+dg*dg+db*db < t2){ n++; sx+=x; sy+=y; } } }
     if(n<MIN_PIX) return null;
     return { x:sx/n, y:sy/n, r:Math.sqrt(n/Math.PI), n:n };
   }
 
-  // ===== インパクト検出 =====
-  function watchImpact(pb, idx){
-    if(!pb){ return; }
-    if(!baseline){
-      baseBuf.push(pb);
-      if(baseBuf.length>=BASE_FRAMES){
-        var sx=0,sy=0,sr=0;
-        for(var i=0;i<baseBuf.length;i++){ sx+=baseBuf[i].x; sy+=baseBuf[i].y; sr+=baseBuf[i].r; }
-        baseline={ x:sx/baseBuf.length, y:sy/baseBuf.length, r:sr/baseBuf.length };
-        mmPerPx = BALL_MM/(2*baseline.r);
-        say('基準OK！ボール半径'+baseline.r.toFixed(1)+'px＝<b>1px '+mmPerPx.toFixed(2)+'mm</b><br>打ってOK！');
-      }
-      return;
-    }
-    var dx=pb.x-baseline.x, dy=pb.y-baseline.y;
+  function doBase(p){
+    if(!p){ say('ボールが見つかりません<br><span style="font-size:13px">明るいところで、もう一度タップしてみて</span>'); return; }
+    baseBuf.push(p);
+    if(baseBuf.length>=BASE_N){
+      var sx=0,sy=0,sr=0;
+      for(var i=0;i<baseBuf.length;i++){ sx+=baseBuf[i].x; sy+=baseBuf[i].y; sr+=baseBuf[i].r; }
+      baseline={ x:sx/BASE_N, y:sy/BASE_N, r:sr/BASE_N };
+      phase='ready'; say('打ってOK！ ⛳️');
+    } else say('そのまま待ってて…');
+  }
+
+  function doReady(p, now){
+    if(!p) return;
+    var dx=p.x-baseline.x, dy=p.y-baseline.y;
     if(Math.sqrt(dx*dx+dy*dy) > baseline.r*MOVE_TRIG){
-      phase='burst'; postCount=0; impactRingPos=idx;
-      say('インパクト検出！記録中…');
+      phase='burst'; postCount=0; track=[{x:p.x,y:p.y,r:p.r,t:now}];
     }
   }
 
-  // ===== 解析 =====
-  function seq(){
-    // リングを時系列順に並べ替え、インパクト位置を返す
-    var out=[], start=(ringLen<RING)?0:ringIdx, imp=-1;
-    for(var k=0;k<ringLen;k++){
-      var i=(start+k)%RING;
-      if(i===impactRingPos) imp=out.length;
-      out.push({ i:i, p:ringPos[i] });
+  function finish(){
+    phase='done';
+    var good=[];
+    for(var i=0;i<track.length;i++){ if(track[i].r>=2.2) good.push(track[i]); }
+    $('result').style.display='flex';
+    if(good.length<2){
+      $('rLead').textContent='うまく追えませんでした';
+      $('rBig').innerHTML='—';
+      $('rSub').innerHTML='ボールをもっと大きく写して、明るいところで<br>'+info();
+    } else {
+      var b=good[good.length-1];
+      var sc=BALL_MM/(2*b.r);
+      var lat=(b.x-baseline.x)*sc;          // mm（右が＋）
+      var cm=Math.abs(lat)/10;
+      var dir = Math.abs(cm)<0.8 ? 'まっすぐ！' : (lat>0?'右に':'左に');
+      $('rLead').textContent = (Math.abs(cm)<0.8?'ナイスショット':'ブレたのは') ;
+      $('rBig').innerHTML = (Math.abs(cm)<0.8 ? 'まっすぐ'
+        : dir+'<br>'+cm.toFixed(1)+'<small>cm</small>');
+      $('rSub').innerHTML = 'ボール'+(Math.abs(lat)/BALL_MM).toFixed(1)+'個分／'+good.length+'コマ追えました<br>'+info();
     }
-    return { list:out, imp:imp };
+    say('');
+    $('btn').textContent='⛳️ もう一球'; $('btn').style.display='block';
+  }
+  function info(){
+    var t=stream&&stream.getVideoTracks()[0], s=(t&&t.getSettings)?t.getSettings():{};
+    return '実測'+fps.toFixed(0)+'fps（カメラ申告'+(s.frameRate?Math.round(s.frameRate):'?')+'fps）';
   }
 
-  function analyze(){
-    var s=seq(), L=s.list, imp=s.imp;
-    if(imp<0){ say('解析できませんでした（もう一度）'); return; }
-
-    // --- インパクト後のボール軌跡 ---
-    var post=[];
-    for(var k=imp;k<L.length;k++){ if(L[k].p&&L[k].p.ball) post.push(L[k].p); }
-    // --- インパクト直前のクラブ軌跡 ---
-    var pre=[];
-    for(var k2=Math.max(0,imp-10);k2<=imp;k2++){ if(L[k2].p&&L[k2].p.club) pre.push(L[k2].p); }
-
-    var rows=[], warn=[];
-    var dt = fps>1 ? 1/fps : null;
-
-    if(post.length>=2){
-      var a=post[0].ball, b=post[post.length-1].ball;
-      var sc = mmPerPx || (BALL_MM/(2*a.r));
-      var ddx=(b.x-a.x)*sc, ddy=(b.y-a.y)*sc;   // mm（画面座標。yは下が＋）
-
-      if(view==='side'){
-        // 真横から：打ち出し角と初速が2Dでそのまま出る
-        var ang=Math.atan2(-ddy, Math.abs(ddx))*180/Math.PI;
-        rows.push(kv('打ち出し角', ang.toFixed(1), '度'));
-        if(dt){
-          var dist=Math.sqrt(ddx*ddx+ddy*ddy);
-          var sp=dist/((post.length-1)*dt)/1000;   // m/s
-          rows.push(kv('ボール初速', (sp*3.6).toFixed(0), 'km/h'));
-        }
-      }else{
-        // うしろから：左右のブレ（＝要望①）
-        var lat=ddx*( (facing==='user') ? -1 : 1 );
-        var dirn = lat>=0 ? '右' : '左';
-        rows.push(kv('左右のブレ', dirn+' '+Math.abs(lat/10).toFixed(1), 'cm'));
-        rows.push(kv('ボール何個分', (Math.abs(lat)/BALL_MM).toFixed(1), '個'));
-        warn.push('※ボールが画面から出るまでの間で測っています。手前ほど正確です。');
-      }
-      rows.push(kv('使えたコマ', post.length, '枚'));
-    }else{
-      warn.push('ボールを追えたコマが足りません。感度を上げる／明るくする／スマホをボールに近づけると追えます。');
-    }
-
-    // --- クラブの入射角（＝バックスピンの正体） ---
-    if(pre.length>=3){
-      var c0=pre[0].club, c1=pre[pre.length-1].club;
-      var cdx=(c1.x-c0.x), cdy=(c1.y-c0.y);
-      var cang=Math.atan2(cdy, Math.abs(cdx))*180/Math.PI;  // ＋＝下向き＝ダウンブロー
-      if(view==='side'){
-        var label = cang>1.5 ? '上から' : (cang<-1.5 ? '下から' : 'ほぼ水平');
-        rows.push(kv('クラブの入り方', label+' '+Math.abs(cang).toFixed(1), '度'));
-        if(dt && mmPerPx){
-          var cd=Math.sqrt(cdx*cdx+cdy*cdy)*mmPerPx;
-          var cs=cd/((pre.length-1)*dt)/1000;
-          rows.push(kv('ヘッドスピード', (cs*3.6).toFixed(0), 'km/h'));
-        }
-        if(cang>1.5) warn.push('上から入っている＝バックスピンがかかる打ち方！');
-        else if(cang<-1.5) warn.push('下からすくい上げ気味。バックスピンは減ります。');
-      }else{
-        var side = cdx>0 ? 'アウト→イン気味' : 'イン→アウト気味';
-        rows.push(kv('クラブの軌道', side, ''));
-      }
-    }
-
-    $('rTitle').textContent = (view==='side'?'よこ置き':'うしろ置き')+' の計測けっか';
-    $('rBody').innerHTML = rows.join('') +
-      (warn.length? '<div class="note" style="text-align:left;margin-top:8px">'+warn.join('<br>')+'</div>':'') +
-      '<div class="note" style="text-align:left;margin-top:6px">実測fps '+fps.toFixed(0)+'／'+trackInfo()+
-      (mmPerPx?('／1px '+mmPerPx.toFixed(2)+'mm'):'')+'</div>';
-    $('result').style.display='block';
-
-    // コマ送りを開く（生データを隠さない）
-    $('scrub').style.display='flex';
-    $('frame').max=String(L.length-1);
-    $('frame').value=String(Math.min(L.length-1, imp));
-    showFrame(Math.min(L.length-1, imp));
-    say('けっかが出ました！<b>コマ送り</b>で実際のコマも見られます');
-    $('btnArm').textContent='▶️ もう一度 計測';
-    $('btnArm').disabled=false;
-  }
-  function kv(k,v,u){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+(u?'<small>'+u+'</small>':'')+'</span></div>'; }
-
-  // ===== コマ送り =====
-  var scrubbing=false;
-  function showFrame(n){
-    var s=seq(), L=s.list;
-    if(n<0||n>=L.length) return;
-    scrubbing=true;
-    var item=L[n], r=cv.getBoundingClientRect();
+  function draw(p){
+    var r=cv.getBoundingClientRect(), kx=r.width/AW, ky=r.height/AH;
     cx.clearRect(0,0,r.width,r.height);
-    cx.drawImage(ring[item.i].cv, 0,0, r.width, r.height);
-    var kx=r.width/AW, ky=r.height/AH;
-    if(item.p&&item.p.ball) ring1(item.p.ball,kx,ky,'#a6ff00');
-    if(item.p&&item.p.club) ring1(item.p.club,kx,ky,'#ffcf5a');
-    $('frameLabel').textContent = (n-s.imp>=0?'+':'')+(n-s.imp)+' コマ';
-  }
-  function ring1(p,kx,ky,col){
-    cx.strokeStyle=col; cx.lineWidth=2.5;
-    cx.beginPath(); cx.arc(p.x*kx, p.y*ky, Math.max(6,p.r*kx*1.35), 0, Math.PI*2); cx.stroke();
-  }
-
-  // ===== ライブ描画 =====
-  function draw(pb,pc){
-    if(scrubbing) return;
-    var r=cv.getBoundingClientRect(); var kx=r.width/AW, ky=r.height/AH;
-    cx.clearRect(0,0,r.width,r.height);
-    if(baseline){
-      cx.strokeStyle='rgba(255,255,255,.35)'; cx.lineWidth=1.5; cx.setLineDash([4,4]);
-      cx.beginPath(); cx.arc(baseline.x*kx, baseline.y*ky, baseline.r*kx*1.35,0,Math.PI*2); cx.stroke(); cx.setLineDash([]);
+    if(phase==='done'){
+      cx.strokeStyle='rgba(166,255,0,.9)'; cx.lineWidth=3; cx.beginPath();
+      for(var i=0;i<track.length;i++){ var q=track[i];
+        if(i===0) cx.moveTo(q.x*kx,q.y*ky); else cx.lineTo(q.x*kx,q.y*ky); }
+      cx.stroke(); return;
     }
-    if(pb) ring1(pb,kx,ky,'#a6ff00');
-    if(pc) ring1(pc,kx,ky,'#ffcf5a');
-    $('hud').innerHTML = fps.toFixed(0)+' fps<br>'+trackInfo()+
-      (refBall?('<br>ボール '+(pb?'追跡中':'ロスト')):'')+
-      (refClub?('<br>シール '+(pc?'追跡中':'ロスト')):'');
+    if(baseline){ cx.strokeStyle='rgba(255,255,255,.3)'; cx.lineWidth=1.5; cx.setLineDash([4,4]);
+      cx.beginPath(); cx.arc(baseline.x*kx, baseline.y*ky, baseline.r*kx*1.4,0,Math.PI*2); cx.stroke(); cx.setLineDash([]); }
+    if(p){ cx.strokeStyle='#a6ff00'; cx.lineWidth=3;
+      cx.beginPath(); cx.arc(p.x*kx, p.y*ky, Math.max(7,p.r*kx*1.4),0,Math.PI*2); cx.stroke(); }
   }
 
-  // ===== タップで色を登録 =====
+  // タップでボール登録（しきい値は自動）
   cv.addEventListener('click', function(ev){
-    if(!running) return;
+    if(!running || phase==='burst' || phase==='done') return;
     var r=cv.getBoundingClientRect();
-    var x=Math.round((ev.clientX-r.left)/r.width*AW);
-    var y=Math.round((ev.clientY-r.top)/r.height*AH);
+    var x=Math.round((ev.clientX-r.left)/r.width*AW), y=Math.round((ev.clientY-r.top)/r.height*AH);
     var d=actx.getImageData(Math.max(0,x-3),Math.max(0,y-3),7,7).data;
     var sr=0,sg=0,sb=0,n=0;
     for(var i=0;i<d.length;i+=4){ sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; n++; }
-    var ref={ r:sr/n, g:sg/n, b:sb/n };
-    var target = pickMode || 'ball';
-    if(target==='ball'){
-      refBall=ref; lastBall={x:x,y:y,r:12}; baseline=null; baseBuf=[]; mmPerPx=null;
-      say('ボールを登録しました！<br>ボールだけが緑の丸で囲まれるように<b>感度</b>を調整してね');
-    }else{
-      refClub=ref; lastClub={x:x,y:y,r:14};
-      say('クラブのシールを登録しました！<br>シールだけが黄色で囲まれるように<b>感度</b>を');
-    }
-    pickMode=null; $('btnBall').classList.remove('on'); $('btnClub').classList.remove('on');
-    scrubbing=false;
+    ref={ r:sr/n, g:sg/n, b:sb/n };
+    // 塊が広がりすぎない最大のしきい値を自動で選ぶ
+    var img=actx.getImageData(0,0,AW,AH).data, best=40;
+    for(var t=30;t<=130;t+=10){ thr=t; var q=detect(img, ref, {x:x,y:y,r:16}); if(!q) continue; if(q.n>3500) break; best=t; }
+    thr=best;
+    last={x:x,y:y,r:14}; baseline=null; baseBuf=[]; lost=0; phase='base';
+    say('そのまま待ってて…');
   });
 
-  // ===== UI =====
-  $('btnStart').addEventListener('click', startCamera);
-  $('btnFlip').addEventListener('click', function(){ facing=(facing==='environment')?'user':'environment'; if(running) startCamera(); });
-  $('btnBall').addEventListener('click', function(){ pickMode='ball'; this.classList.add('on'); $('btnClub').classList.remove('on'); say('ボールを画面で<b>タップ</b>してね'); });
-  $('btnClub').addEventListener('click', function(){ pickMode='club'; this.classList.add('on'); $('btnBall').classList.remove('on'); say('クラブに貼った<b>色シール</b>をタップしてね（黄色や蛍光色がおすすめ）'); });
-  $('vSide').addEventListener('click', function(){ view='side'; this.classList.add('on'); $('vBehind').classList.remove('on');
-    $('howto').innerHTML='スマホを<b>真横</b>に立てかけて、ボールとクラブが横から写るように。<br>分かること＝打ち出し角・初速・<b>クラブが上から入っているか</b>'; });
-  $('vBehind').addEventListener('click', function(){ view='behind'; this.classList.add('on'); $('vSide').classList.remove('on');
-    $('howto').innerHTML='スマホを<b>打つ方向のうしろ</b>（飛んでいく方を向けて）立てかける。<br>分かること＝<b>左右のブレ</b>・クラブ軌道の左右'; });
-  $('sens').addEventListener('input', function(){ thr=+this.value; $('sensv').textContent=this.value; });
-  $('frame').addEventListener('input', function(){ showFrame(+this.value); });
-  $('btnArm').addEventListener('click', function(){
-    if(!refBall){ say('先にボールをタップして登録してね'); return; }
-    phase='armed'; baseline=null; baseBuf=[]; postCount=0; impactRingPos=-1;
-    ringIdx=0; ringLen=0; for(var i=0;i<RING;i++) ringPos[i]=null;
-    scrubbing=false; $('result').style.display='none'; $('scrub').style.display='none';
-    this.textContent='▶️ 計測スタート'; this.disabled=true;
-    say('ボールを静かに置いて、少し待ってね（基準をとっています）');
-    var btn=this; setTimeout(function(){ btn.disabled=false; }, 1200);
+  $('btn').addEventListener('click', function(){
+    if(phase==='idle'){ start(); return; }
+    $('result').style.display='none'; $('btn').style.display='none';
+    baseline=null; baseBuf=[]; track=[]; postCount=0; lost=0; phase='base';
+    say('そのまま待ってて…');
+  });
+  $('reset').addEventListener('click', function(){
+    $('result').style.display='none'; $('btn').style.display='none';
+    ref=null; baseline=null; baseBuf=[]; track=[]; lost=0; phase='pick';
+    say('ボールを<b>タップ</b>してね 👆');
   });
 })();
 </script>
