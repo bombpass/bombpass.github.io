@@ -56,34 +56,28 @@
 </head>
 <body>
 <div class="wrap">
-  <header><div><div class="title">NICE SWING</div><div class="sub">SWING SOUND LAB</div></div><div style="text-align:right"><div class="safe">🛡 安全</div><div class="vbadge">ver.4</div></div></header>
-  <div class="stepper"><div class="stp" id="stp1">① 基準をセット</div><div class="stp" id="stp2">② スイング</div></div>
+  <header><div><div class="title">NICE SWING</div><div class="sub">SWING SOUND LAB</div></div><div style="text-align:right"><div class="vbadge">ver.5</div></div></header>
+  <div class="stepper" id="stepper" style="display:none"><div class="stp" id="stp1">① 基準をセット</div><div class="stp" id="stp2">② スイング</div></div>
   <div class="ringwrap"><div class="ring">
     <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"></circle><circle class="prog" id="prog" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle></svg>
     <div class="center"><div class="emoji" id="emoji">🏌️</div><div class="ctitle" id="ctitle">安全を確認して
-スタート</div><div class="csub" id="csub">MOTION READY</div></div>
+スタート</div><div class="csub" id="csub"></div></div>
   </div></div>
-  <div class="result">
-    <div class="dist"><span class="v" id="rDist">--</span><span class="u">yd</span><div class="l">推定飛距離（演出）</div></div>
+  <div class="result" id="resultCard" style="display:none">
+    <div class="dist"><span class="v" id="rDist">--</span><span class="u">yd</span><div class="l">推定飛距離</div></div>
     <div class="grid">
-      <div class="cell"><div class="l">推定ヘッドスピード</div><div class="v" id="rHS">--<small> km/h</small></div></div>
-      <div class="cell"><div class="l">手の速さ</div><div class="v" id="rTempo">--<small> m/s</small></div></div>
-      <div class="cell"><div class="l">フェース</div><div class="v" id="rFace">--</div></div>
+      <div class="cell"><div class="l">ヘッドスピード</div><div class="v" id="rHS">--<small> km/h</small></div></div>
       <div class="cell"><div class="l">振りの大きさ</div><div class="v" id="rArc">--<small> %</small></div></div>
     </div>
     <div class="verdict" id="rVerdict"></div>
-    <div class="diag" id="diag"></div>
   </div>
   <div class="controls">
     <button class="primary" id="btnMain">▶ 構える</button>
     <div class="row hidden" id="againRow"><button id="btnAgain">🔁 もう一球</button><button id="btnShare">📤 シェア</button></div>
-    <a href="camera.html" class="audition" style="text-decoration:none;text-align:center">🎥 カメラ分析モード（β）</a>
-    <a href="lab.html" class="audition" style="text-decoration:none;text-align:center">🎯 左右のブレを測る（β）</a>
-    <button class="audition" id="btnAudition">🎵 打球音の候補を聴く（タップで次）</button>
-    <div class="soundlabel" id="soundLabel"></div>
+    <div class="row"><a href="lab.html" class="audition" style="flex:1;text-decoration:none;text-align:center">🎯 左右のブレ</a><a href="camera.html" class="audition" style="flex:1;text-decoration:none;text-align:center">🎥 カメラ分析</a></div>
     <div class="msg" id="msg"></div>
   </div>
-  <div class="foot"><div class="n">飛距離は実測した速さ・振りの大きさからの推定演出。左右のブレは、スマホを置いてボールを撮るモードで実測できます。</div><div class="p">Presented by 夜レジ ・ ver.4（録画対応テスト）</div></div>
+  <div class="foot"><div class="p">Presented by 夜レジ</div></div>
 </div>
 <div id="flash" class="flash"></div>
 <canvas id="fx" class="fx"></canvas>
@@ -223,17 +217,17 @@
   function setStep(n){ // 0=なし 1=基準セット中 2=スイング可
     $('stp1').classList.toggle('on', n===1); $('stp1').classList.toggle('done', n>=2);
     $('stp2').classList.toggle('on', n>=2);
+    $('stepper').style.display = n===0 ? 'none' : 'flex';
     if(n===0){ $('stp1').className='stp'; $('stp2').className='stp'; }
   }
   function showResult(r){
     countUp($('rDist'), r.distYd); resultFx(r.distYd, r.label); $('rHS').innerHTML=r.hsKmh+'<small> km/h</small>';
-    $('rTempo').innerHTML=r.linMs+'<small> m/s</small>';
-    $('rFace').textContent=r.faceTxt; $('rArc').innerHTML=r.arcPct+'<small> %</small>';
+    $('rArc').innerHTML=r.arcPct+'<small> %</small>';
     $('rVerdict').textContent=r.label+'（ミート率 '+r.meetPct+'%）';
-    $('diag').textContent='調整用 → 手速 '+r.linMs+'m/s / 向き'+r.faceTxt+' / 軸'+r.clean+'('+r.cleanScore+'%) / ω'+r.peak;
-    setCenter(r.label,'NICE SWING!'); const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
+    $('resultCard').style.display='block';
+    setCenter(r.label,''); const e=$('emoji'); e.style.transform='scale(1.18)'; setTimeout(()=>e.style.transform='scale(1)',220);
   }
-  function clearResult(){ ['rDist','rFace'].forEach(id=>$(id).textContent='--'); $('rHS').innerHTML='--<small> km/h</small>'; $('rTempo').innerHTML='--<small> m/s</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; $('diag').textContent=''; }
+  function clearResult(){ $('resultCard').style.display='none'; $('rDist').textContent='--'; $('rHS').innerHTML='--<small> km/h</small>'; $('rArc').innerHTML='--<small> %</small>'; $('rVerdict').textContent=''; }
 
   // ===== センサー =====
   function onMotion(ev){ motionSeen=true;
@@ -294,16 +288,13 @@
     } else if(state===ST.INTRO){ $('btnMain').textContent='■ やめる'; $('btnMain').classList.add('stop'); startWind(); startCountdown();
     } else { armed=false; state=ST.STANDBY; stopSensors(); stopWindNode();
       $('btnMain').textContent='▶ 構える'; $('btnMain').classList.remove('stop');
-      setCenter('安全を確認して\nスタート','MOTION READY'); prog(0); clearResult(); $('againRow').classList.add('hidden'); $('msg').textContent=''; setStep(0); }
+      setCenter('安全を確認して\nスタート',''); prog(0); clearResult(); $('againRow').classList.add('hidden'); $('msg').textContent=''; setStep(0); }
   });
   $('btnAgain').addEventListener('click', ()=>{ if(!armed)return; armReady(); });
   $('btnShare').addEventListener('click', async ()=>{ if(!lastResult)return; const r=lastResult;
     const txt=`NICE SWING 🏌️\n推定飛距離 ${r.distYd}yd / ヘッドスピード ${r.hsKmh}km/h / 振り ${r.tilt}°\n${r.label}（ミート率${r.meetPct}%）\nhttps://bombpass.github.io/swing/ #NICESWING #夜レジ`;
     try{ if(navigator.share){ await navigator.share({text:txt}); } else { await navigator.clipboard.writeText(txt); $('msg').textContent='結果をコピーしました'; } }catch(e){} });
 
-  const CANDS=[['① メタルショット（金属カキーン）','metal'],['② パワフルショット','powerful'],['③ シャープヒット','sharp'],['④ ハードヒット','hard'],['⑤ ヒッティング（軽め）','hitting']];
-  let ci=-1;
-  $('btnAudition').addEventListener('click', async ()=>{ await resumeAudio(); ci=(ci+1)%CANDS.length; playSound(CANDS[ci][1],1,1); $('soundLabel').textContent='🔊 再生中：'+CANDS[ci][0]; });
 
   // ===== インパクト演出（撮れる5秒） =====
   const cv=$('fx'), cx=cv.getContext('2d'); let FW=0,FH=0;
